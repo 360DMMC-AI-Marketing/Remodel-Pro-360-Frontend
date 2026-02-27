@@ -8,7 +8,7 @@ import { useState } from "react"
 const Header = () => {
     const [isOpen, setIsOpen] = useState(false)
   return (
-    <header className="sticky top-0 z-sticky bg-white/80 backdrop-blur-lg border-b border-b-neutral-200 h-header">
+    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-b-neutral-200 h-header">
         <Container className="h-full flex items-center justify-between">
             <h3 className="cursor-default">RP360</h3>
             <div className="hidden md:flex h-full items-center gap-10">
@@ -30,7 +30,7 @@ const Header = () => {
                 </div>
             </div>
             <button onClick={() => setIsOpen(!isOpen)} className="md:hidden cursor-pointer">
-                {isOpen ? <X size={24} /> : <Menu size={24} />}
+                {isOpen ? <X size={32} /> : <Menu size={32} />}
             </button>
         </Container>
         {
