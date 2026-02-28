@@ -281,9 +281,9 @@
   }
 
   /* Links */
-  a {
+  /* a {
     @apply text-primary-600 hover:text-primary-700 transition-colors;
-  }
+  } */
 
   /* Buttons - Remove default styles */
   button {

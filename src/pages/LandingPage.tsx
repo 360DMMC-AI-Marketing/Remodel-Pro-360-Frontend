@@ -86,7 +86,7 @@ const LandingPage = () => {
             className="flex flex-col items-center text-center"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
+            transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
             viewport={{ once: true, amount: 0.4 }}
           >
             <h1 className="text-primary-600">500+</h1>
@@ -96,7 +96,7 @@ const LandingPage = () => {
             className="flex flex-col items-center text-center"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.5, ease: "easeOut" }}
+            transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
             viewport={{ once: true, amount: 0.4 }}
           >
             <h1 className="text-primary-600">$5M+</h1>
@@ -220,7 +220,7 @@ const LandingPage = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.6, ease: "easeOut" }}
+              transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
               viewport={{ once: true, amount: 0.4 }}
             >
               <Card hoverable className="group">
@@ -240,7 +240,7 @@ const LandingPage = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.6, ease: "easeOut" }}
+              transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
               viewport={{ once: true, amount: 0.4 }}
             >
               <Card hoverable className="group">

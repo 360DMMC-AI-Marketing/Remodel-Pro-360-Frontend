@@ -22,10 +22,10 @@ const Header = () => {
                 </nav>
                 <div>
                     <Button variant="ghost" size="sm" className="mr-2">
-                        Log In
+                        <NavLink to="/login">Log In</NavLink>
                     </Button>
                     <Button variant="primary" size="sm">
-                        Get Started
+                        <NavLink to="/register">Get Started</NavLink>
                     </Button>
                 </div>
             </div>
@@ -45,10 +45,10 @@ const Header = () => {
                         </NavLink>
                         <div className="mt-4 w-full">
                             <Button variant="ghost" size="sm" className="w-full mb-2">
-                                Log In
+                                <NavLink to="/login">Log In</NavLink>
                             </Button>
                             <Button variant="primary" size="sm" className="w-full">
-                                Get Started
+                                <NavLink to="/register">Get Started</NavLink>
                             </Button>
                         </div>
                     </nav>
