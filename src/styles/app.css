@@ -104,8 +104,8 @@
   /* Tailwind v4 uses default spacing scale (0.25rem base unit) */
   /* Custom spacing if needed: */
   --spacing-header: 4.5rem; /* 72px - Fixed header height */
-  --spacing-sidebar: 16rem; /* 256px - Sidebar width */
-  --spacing-sidebar-collapsed: 4rem; /* 64px - Collapsed sidebar */
+  --spacing-sidebar: 20rem; /* 320px - Sidebar width */
+  --spacing-sidebar-collapsed: 70px; /* 64px - Collapsed sidebar */
 
   /* ==================== SHADOWS ==================== */
 
@@ -395,7 +395,7 @@
 
   /* Badge */
   .badge {
-    @apply inline-flex items-center px-4 py-1 rounded-xl text-xs font-medium cursor-default;
+    @apply inline-flex items-center px-2 py-1 rounded-xl text-xs font-medium cursor-default;
   }
 
   .badge-primary {
@@ -407,11 +407,15 @@
   }
 
   .badge-warning {
-    @apply bg-warning-light text-warning-dark;
+    @apply bg-warning-light text-warning;
   }
 
   .badge-error {
     @apply bg-error-light text-error-dark;
+  }
+
+  .badge-draft {
+    @apply bg-secondary-100 text-secondary-800;
   }
 
   /* Container */

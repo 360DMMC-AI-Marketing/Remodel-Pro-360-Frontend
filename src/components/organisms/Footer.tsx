@@ -2,7 +2,7 @@ import { Container } from "../atoms/Container";
 
 const Footer = () => {
   return (
-    <div className="w-full py-12 bg-neutral-100">
+    <div className="w-full py-12 bg-white border-t border-t-neutral-200">
       <Container className="space-y-8">
         <div className="grid gap-8 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
           <div>

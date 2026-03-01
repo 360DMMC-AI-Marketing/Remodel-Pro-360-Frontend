@@ -1,62 +1,76 @@
-import { Button } from "../atoms/Button"
-import { Container } from "../atoms/Container"
-import { NavLink } from "react-router-dom"
-import { Menu, X } from "lucide-react"
-import { useState } from "react"
-
+import { Button } from "../atoms/Button";
+import { Container } from "../atoms/Container";
+import { NavLink } from "react-router-dom";
+import { Menu, X } from "lucide-react";
+import { useState } from "react";
 
 const Header = () => {
-    const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(false);
   return (
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-b-neutral-200 h-header">
-        <Container className="h-full flex items-center justify-between">
-            <h3 className="cursor-default">RP360</h3>
-            <div className="hidden md:flex h-full items-center gap-10">
-                <nav>
-                    <NavLink to="/" className="text-neutral-500 hover:text-neutral-900 transition-colors duration-200">
-                        How It Works
-                    </NavLink>
-                    <NavLink to="/pricing" className="ml-6 text-neutral-500 hover:text-neutral-900 transition-colors duration-200">
-                        Pricing
-                    </NavLink>
-                </nav>
-                <div>
-                    <Button variant="ghost" size="sm" className="mr-2">
-                        <NavLink to="/login">Log In</NavLink>
-                    </Button>
-                    <Button variant="primary" size="sm">
-                        <NavLink to="/register">Get Started</NavLink>
-                    </Button>
-                </div>
+      <Container className="h-full flex items-center justify-between">
+        <NavLink to="/">
+          <h3 className="cursor-pointer">RP360</h3>
+        </NavLink>
+        <div className="hidden md:flex h-full items-center gap-10">
+          <nav>
+            <NavLink
+              to="/how-it-works"
+              className="text-neutral-500 hover:text-neutral-900 transition-colors duration-200"
+            >
+              How It Works
+            </NavLink>
+            <NavLink
+              to="/pricing"
+              className="ml-6 text-neutral-500 hover:text-neutral-900 transition-colors duration-200"
+            >
+              Pricing
+            </NavLink>
+          </nav>
+          <div>
+            <Button variant="ghost" size="sm" className="mr-2">
+              <NavLink to="/login">Log In</NavLink>
+            </Button>
+            <Button variant="primary" size="sm">
+              <NavLink to="/register">Get Started</NavLink>
+            </Button>
+          </div>
+        </div>
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="md:hidden cursor-pointer"
+        >
+          {isOpen ? <X size={32} /> : <Menu size={32} />}
+        </button>
+      </Container>
+      {isOpen && (
+        <div className="md:hidden bg-white border-y border-y-neutral-200">
+          <nav className="flex flex-col items-start gap-4 p-4">
+            <NavLink
+              to="/"
+              className="text-neutral-500 hover:text-neutral-900 transition-colors duration-200"
+            >
+              How It Works
+            </NavLink>
+            <NavLink
+              to="/pricing"
+              className="text-neutral-500 hover:text-neutral-900 transition-colors duration-200"
+            >
+              Pricing
+            </NavLink>
+            <div className="mt-4 w-full">
+              <Button variant="ghost" size="sm" className="w-full mb-2">
+                <NavLink to="/login">Log In</NavLink>
+              </Button>
+              <Button variant="primary" size="sm" className="w-full">
+                <NavLink to="/register">Get Started</NavLink>
+              </Button>
             </div>
-            <button onClick={() => setIsOpen(!isOpen)} className="md:hidden cursor-pointer">
-                {isOpen ? <X size={32} /> : <Menu size={32} />}
-            </button>
-        </Container>
-        {
-            isOpen && (
-                <div className="md:hidden bg-white border-y border-y-neutral-200">
-                    <nav className="flex flex-col items-start gap-4 p-4">
-                        <NavLink to="/" className="text-neutral-500 hover:text-neutral-900 transition-colors duration-200">
-                            How It Works
-                        </NavLink>
-                        <NavLink to="/pricing" className="text-neutral-500 hover:text-neutral-900 transition-colors duration-200">
-                            Pricing
-                        </NavLink>
-                        <div className="mt-4 w-full">
-                            <Button variant="ghost" size="sm" className="w-full mb-2">
-                                <NavLink to="/login">Log In</NavLink>
-                            </Button>
-                            <Button variant="primary" size="sm" className="w-full">
-                                <NavLink to="/register">Get Started</NavLink>
-                            </Button>
-                        </div>
-                    </nav>
-                </div>
-            )
-        }
+          </nav>
+        </div>
+      )}
     </header>
-  )
-}
+  );
+};
 
-export default Header
+export default Header;
