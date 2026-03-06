@@ -1,16 +1,22 @@
 import { Button } from "@/components/atoms/Button";
 import { Input } from "@/components/atoms/Input";
-import { Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { registerSchema, type RegisterFormValues } from "@/schemas/auth";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { NavLink } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/stores/useAuth";
+import { useNavigate } from "react-router-dom";
+import { Spinner } from "@/components/atoms/Spinner";
+import { toast } from "sonner";
+import logo from "@/assets/logo-transparent.png";
 
 const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const navigate = useNavigate();
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const {
     register,
@@ -33,17 +39,30 @@ const Register = () => {
   type role = "homeowner" | "contractor";
   const selectedRole = watch("role");
 
-  const onSubmit = (data: RegisterFormValues) => {
-    const { confirmPassword, ...dataToSend } = data;
-    console.log(confirmPassword);
-    console.log(dataToSend);
-    // Submit form logic here
+  const { signup, isLoading } = useAuth();
+
+  const onSubmit = async (data: RegisterFormValues) => {
+    try {
+      await signup(data);
+      navigate("/email-verification-info");
+    } catch (error: any) {
+      const errorObject = { error };
+      const errorMessage = errorObject.error.response.data.error;
+      console.log(errorMessage);
+      toast(errorMessage);
+    }
   };
   return (
-    <div className="min-h-screen flex justify-center items-center bg-neutral-100 px-4">
+    <div className="min-h-screen flex justify-center items-center bg-neutral-100 px-4 py-2">
+      <Link
+        to="/"
+        className="text-primary-500 hover:underline absolute top-5 left-5 flex items-center gap-2 text-base"
+      >
+        <ArrowLeft size={18} /> Go back to home page
+      </Link>
       <div className="w-full max-w-md text-center">
-        <h3 className="text-neutral-900">RP360</h3>
-        <div className="mt-5">
+        <img src={logo} alt="logo" className="w-48 mx-auto" />
+        <div className="mt-2">
           <h4>Create your account</h4>
           <p className="text-sm text-neutral-600">
             Start your renovation journey today
@@ -56,29 +75,6 @@ const Register = () => {
             noValidate
           >
             <div>
-              {/* <div className="mt-2 flex gap-2">
-                <div
-                  className={`py-3 flex-1 border-2 rounded-xl cursor-pointer text-md ${watch("role") === "homeowner" ? "text-primary-500 border-primary-600 bg-neutral-100" : "border-neutral-200 text-neutral-400 hover:border-primary-200"}`}
-                  onClick={() =>
-                    setValue("role", "homeowner", { shouldValidate: true })
-                  }
-                >
-                  Homeowner
-                </div>
-                <div
-                  className={`py-3 flex-1 border-2 rounded-xl cursor-pointer text-md ${watch("role") === "contractor" ? "text-primary-500 border-primary-600 bg-neutral-100" : "border-neutral-200 text-neutral-400 hover:border-primary-200"}`}
-                  onClick={() =>
-                    setValue("role", "contractor", { shouldValidate: true })
-                  }
-                >
-                  Contractor
-                </div>
-              </div>
-              {errors.role && (
-                <span className="text-xs text-red-500 block text-left mt-1">
-                  {errors.role.message}
-                </span>
-              )} */}
               <div>
                 <label className="block text-left text-sm font-medium text-neutral-900 mb-3">
                   I am a ...
@@ -190,7 +186,7 @@ const Register = () => {
               <Input
                 type="email"
                 id="email"
-                placeholder="Enter your email"
+                placeholder="abc@example.com"
                 className={`w-full mt-2 bg-neutral-100`}
                 error={errors.email ? true : false}
                 {...register("email")}
@@ -269,8 +265,13 @@ const Register = () => {
                 </span>
               )}
             </div>
-            <Button variant="primary" size="sm">
-              Create Account
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={isLoading}
+              className="disabled:opacity-50"
+            >
+              {isLoading ? <Spinner size="sm" /> : "Create Account"}
             </Button>
             <p className="text-sm text-neutral-500">
               Already have an account?{" "}

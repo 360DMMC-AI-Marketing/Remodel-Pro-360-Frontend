@@ -1,6 +1,5 @@
 import { Badge } from "@/components/atoms/Badge";
 import { Card } from "@/components/molecules/Card";
-import SideBar from "@/components/organisms/SideBar";
 import {
   FolderOpen,
   TrendingUp,
@@ -8,16 +7,14 @@ import {
   MessageSquare,
   ArrowRight,
 } from "lucide-react";
-import { useState } from "react";
+import { useAuth } from "@/stores/useAuth";
 
 const Dashboard = () => {
-    const [isCollapsed, setIscollapsed] = useState(false);
+    const { user } = useAuth();
   return (
-    <div className="flex overflow-hidden">
-      <SideBar isCollapsed={isCollapsed} setIsCollapsed={setIscollapsed}/>
-      <div className={`bg-neutral-100 transition-all duration-300 ${isCollapsed ? "ml-sidebar-collapsed" : "ml-sidebar"} w-full min-h-screen p-8`}>
+    <>
         <div className="mb-10 text-center md:text-left">
-          <h4>Welcome back, Ahmed!</h4>
+          <h4>Welcome back, {user?.firstName || "Dear User"}!</h4>
           <p className="text-neutral-500">
             Here's what's happening with your projects.
           </p>
@@ -126,8 +123,7 @@ const Dashboard = () => {
             </Card>
           </div>
         </div>
-      </div>
-    </div>
+    </>
   );
 };
 
