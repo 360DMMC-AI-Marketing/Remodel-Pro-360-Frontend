@@ -15,6 +15,7 @@ import HomeownerLayout from "./pages/homeowner/HomeownerLayout";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
 import Projects from "./pages/homeowner/Projects";
+import NewProject from "./pages/homeowner/NewProject";
 
 interface ProtectedRoutesProps {
   allowedRole?: "homeowner" | "contractor" | "admin";
@@ -64,6 +65,7 @@ function App() {
           <Route path="/homeowner" element={<HomeownerLayout />}>
             <Route path="/homeowner/dashboard" element={<Dashboard />} />
             <Route path="/homeowner/projects" element={<Projects />} />
+            <Route path="/homeowner/projects/new" element={<NewProject />} />
           </Route>
         </Route>
         <Route element={<ProtectedRoutes allowedRole="contractor" />}>

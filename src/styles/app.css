@@ -326,7 +326,7 @@
   .btn {
     @apply inline-flex items-center justify-center font-medium rounded-lg transition-all cursor-pointer;
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2;
-    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply disabled:opacity-50 disabled:cursor-default;
   }
 
   /* Button Sizes */
@@ -344,7 +344,7 @@
 
   /* Button Variants */
   .btn-primary {
-    @apply bg-primary-600 text-white hover:bg-primary-700;
+    @apply bg-primary-600 text-white enabled:hover:bg-primary-700;
     @apply focus-visible:ring-primary-500;
   }
 
@@ -361,6 +361,11 @@
   .btn-outline {
     @apply border-2 border-primary-600 text-primary-600 hover:bg-primary-50;
     @apply focus-visible:ring-primary-500;
+  }
+
+  .btn-neutral {
+    @apply bg-neutral-300 text-neutral-700;
+    @apply focus-visible:ring-neutral-500;
   }
 
   .btn-ghost {
