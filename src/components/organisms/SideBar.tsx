@@ -11,6 +11,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
+  Briefcase,
+  DollarSign,
+  User,
+  ShieldCheck
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
@@ -24,6 +28,22 @@ const homeownerLinks = [
   { to: "/", label: "Settings", icon: Settings },
 ];
 
+const contractorLinks = [
+  { to: '/contractor/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/contractor/leads', label: 'Leads', icon: Briefcase },
+  { to: '/contractor/projects', label: 'Projects', icon: FolderOpen },
+  { to: '/contractor/messages', label: 'Messages', icon: MessageSquare },
+  { to: '/contractor/earnings', label: 'Earnings', icon: DollarSign },
+  { to: '/contractor/profile', label: 'Profile', icon: User },
+  { to: '/contractor/settings', label: 'Settings', icon: Settings },
+];
+
+const adminLinks = [
+  { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/admin/vetting', label: 'Contractor Vetting', icon: ShieldCheck },
+  { to: '/admin/users', label: 'Users', icon: User },
+]
+
 const SideBar = ({
   isCollapsed,
   setIsCollapsed,
@@ -31,8 +51,9 @@ const SideBar = ({
   isCollapsed: boolean;
   setIsCollapsed: (isCollapsed: boolean) => void;
 }) => {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const location = useLocation();
+  const links = user?.role === 'homeowner' ? homeownerLinks : user?.role === 'contractor' ? contractorLinks : adminLinks;
   return (
     <div
       className={`fixed top-0 left-0 h-screen ${isCollapsed ? "w-sidebar-collapsed" : "w-sidebar"} transition-all duration-300 bg-white border-r border-r-neutral-200 flex flex-col`}
@@ -47,7 +68,7 @@ const SideBar = ({
       <div className="px-3 flex flex-col flex-1">
         {/* Navigation Bar */}
         <div className="pt-2 w-full flex flex-col space-y-1 flex-1">
-          {homeownerLinks.map((l, i) => {
+          {links.map((l, i) => {
             const active = location.pathname === l.to
             return(
             <Link

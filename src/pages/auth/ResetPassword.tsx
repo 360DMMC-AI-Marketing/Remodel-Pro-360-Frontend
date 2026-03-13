@@ -77,7 +77,7 @@ const ResetPassword = () => {
               <Input
                 type={showNewPassword ? "text" : "password"}
                 id="new-password"
-                placeholder="Enter your email"
+                placeholder="Enter your new password"
                 className={`w-full bg-neutral-100`}
                 error={errors.newPassword ? true : false}
                 {...register("newPassword")}
@@ -105,13 +105,13 @@ const ResetPassword = () => {
                 htmlFor="confirm-new-password"
                 className="block text-left text-sm text-neutral-900"
               >
-                Confirm
+                Confirm New Password
               </label>
               <div className="relative mt-2">
               <Input
                 type={showConfirmNewPassword ? "text" : "password"}
                 id="confirm-new-password"
-                placeholder="Enter your email"
+                placeholder="Confirm your new password"
                 className={`w-full bg-neutral-100`}
                 error={errors.confirmNewPassword ? true : false}
                 {...register("confirmNewPassword")}
@@ -140,7 +140,7 @@ const ResetPassword = () => {
               disabled={isLoading}
               className="disabled:opacity-50"
             >
-              {isLoading ? <Spinner size="sm" /> : "Send Reset Link"}
+              {isLoading ? <Spinner size="sm" /> : "Reset Password"}
             </Button>
             <Link to="/login" className="text-primary-500 text-base hover:underline w-fit flex items-center gap-1 mx-auto">
                 <ArrowLeft size={18}/> Back to Sign In

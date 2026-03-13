@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { createProject } from "@/api/porject";
 
 const STEPS = [
   "Room Type",
@@ -40,6 +41,9 @@ const ROOM_TYPES = [
   { value: "exterior", label: "Exterior", icon: "🏠" },
 ];
 
+// Placeholder for designs - should be fetched from API
+const MOCK_DESIGNS: Array<{ id: string; style: string; roomType: string }> = [];
+
 interface UploadedPhoto {
   id: string;
   file: File;
@@ -50,12 +54,20 @@ interface ProjectFormData {
   roomType: string;
   title: string;
   description: string;
-  address: string;
-  budgetRange: number;
-  customBudget: string;
-  startDate: string;
+  address?: {
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+  };
+  budgetRange?: {
+    min: number;
+    max: number;
+  };
+  customBudget?: number;
+  startDate?: Date;
   attachedDesignId: string | null;
-  uploadedPhotos: UploadedPhoto[];
+  images: UploadedPhoto[];
 }
 
 const NewProject = () => {
@@ -67,12 +79,12 @@ const NewProject = () => {
     roomType: "",
     title: "",
     description: "",
-    address: "",
-    budgetRange: -1,
-    customBudget: "",
-    startDate: "",
+    address: undefined,
+    budgetRange: undefined,
+    customBudget: undefined,
+    startDate: undefined,
     attachedDesignId: null,
-    uploadedPhotos: [],
+    images: [],
   });
 
   const update = (patch: Partial<ProjectFormData>) =>
@@ -85,7 +97,7 @@ const NewProject = () => {
       return (
         form.title.trim().length >= 3 && form.description.trim().length >= 10
       );
-    if (step === 3) return form.budgetRange >= 0;
+    if (step === 3) return !!form.budgetRange || !!form.customBudget;
     return true;
   };
 
@@ -97,30 +109,41 @@ const NewProject = () => {
       preview: URL.createObjectURL(file),
     }));
     update({
-      uploadedPhotos: [...form.uploadedPhotos, ...newPhotos],
+      images: [...form.images, ...newPhotos],
       attachedDesignId: null, // clear design if uploading photos
     });
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const removePhoto = (id: string) => {
-    const photo = form.uploadedPhotos.find((p) => p.id === id);
+    const photo = form.images.find((p) => p.id === id);
     if (photo) URL.revokeObjectURL(photo.preview);
-    update({ uploadedPhotos: form.uploadedPhotos.filter((p) => p.id !== id) });
+    update({ images: form.images.filter((p) => p.id !== id) });
   };
 
-  const selectedBudget =
-    form.budgetRange >= 0 ? BUDGET_RANGES[form.budgetRange] : null;
+  const selectedBudget = form.budgetRange;
   const selectedRoom = ROOM_TYPES.find((r) => r.value === form.roomType);
-//   const attachedDesign = form.attachedDesignId
-//     ? MOCK_DESIGNS.find((d) => d.id === form.attachedDesignId)
-//     : null;
+  const attachedDesign = form.attachedDesignId
+    ? MOCK_DESIGNS.find((d) => d.id === form.attachedDesignId)
+    : null;
 
   const handleSubmit = async () => {
+    console.log(form)
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    toast.success("Project created successfully!");
-    navigate("/homeowner/projects");
+    try {
+      await createProject(form);
+      toast.success("Project created successfully!");
+      navigate("/homeowner/projects");
+    } catch (error) {
+      console.error("Error creating project:", error);
+      const errorMessage = 
+        error && typeof error === 'object' && 'response' in error 
+          ? ((error as { response?: { data?: { message?: string } } }).response?.data?.message || "Failed to create project. Please try again.")
+          : "Failed to create project. Please try again.";
+      toast.error(errorMessage);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -259,7 +282,7 @@ const NewProject = () => {
                         preview: URL.createObjectURL(file),
                       }));
                       update({
-                        uploadedPhotos: [...form.uploadedPhotos, ...newPhotos],
+                        images: [...form.images, ...newPhotos],
                         attachedDesignId: null,
                       });
                     }}
@@ -272,7 +295,7 @@ const NewProject = () => {
                   >
                     <Upload className="h-8 w-8 text-muted-foreground" />
                     <span className="text-sm font-medium text-muted-foreground">
-                      Click to upload photos of your space
+                      Click or drop to upload photos of your space
                     </span>
                     <span className="text-xs text-muted-foreground">
                       JPG, PNG up to 10MB each
@@ -280,9 +303,9 @@ const NewProject = () => {
                   </button>
 
                   {/* Uploaded photos grid */}
-                  {form.uploadedPhotos.length > 0 && (
+                  {form.images.length > 0 && (
                     <div className="mt-4 grid grid-cols-3 gap-3">
-                      {form.uploadedPhotos.map((photo) => (
+                      {form.images.map((photo) => (
                         <div
                           key={photo.id}
                           className="group relative aspect-square overflow-hidden rounded-lg border border-border"
@@ -335,17 +358,70 @@ const NewProject = () => {
                   />
                 </div>
                 <div>
-                  <label htmlFor="address" className="flex items-center gap-1">
+                  <label className="flex items-center gap-1 mb-2">
                     <MapPin size={18} />
                     Address (optional)
                   </label>
-                  <Input
-                    id="address"
-                    value={form.address}
-                    onChange={(e) => update({ address: e.target.value })}
-                    placeholder="123 Main St, City, State"
-                    className="mt-1"
-                  />
+                  <div className="space-y-3">
+                    <Input
+                      id="street"
+                      value={form.address?.street || ""}
+                      onChange={(e) => update({ 
+                        address: { 
+                          ...form.address, 
+                          street: e.target.value,
+                          city: form.address?.city || "",
+                          state: form.address?.state || "",
+                          zipCode: form.address?.zipCode || ""
+                        }
+                      })}
+                      placeholder="Street address"
+                    />
+                    <div className="grid grid-cols-2 gap-3">
+                      <Input
+                        id="city"
+                        value={form.address?.city || ""}
+                        onChange={(e) => update({ 
+                          address: { 
+                            ...form.address, 
+                            street: form.address?.street || "",
+                            city: e.target.value,
+                            state: form.address?.state || "",
+                            zipCode: form.address?.zipCode || ""
+                          }
+                        })}
+                        placeholder="City"
+                      />
+                      <Input
+                        id="state"
+                        value={form.address?.state || ""}
+                        onChange={(e) => update({ 
+                          address: { 
+                            ...form.address, 
+                            street: form.address?.street || "",
+                            city: form.address?.city || "",
+                            state: e.target.value,
+                            zipCode: form.address?.zipCode || ""
+                          }
+                        })}
+                        placeholder="State"
+                      />
+                    </div>
+                    <Input
+                      id="zipCode"
+                      value={form.address?.zipCode || ""}
+                      onChange={(e) => update({ 
+                        address: { 
+                          ...form.address, 
+                          street: form.address?.street || "",
+                          city: form.address?.city || "",
+                          state: form.address?.state || "",
+                          zipCode: e.target.value
+                        }
+                      })}
+                      placeholder="Zip code"
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -360,20 +436,23 @@ const NewProject = () => {
 
                 <label className="mb-3 block">Budget Range</label>
                 <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {BUDGET_RANGES.map((range, i) => (
-                    <button
-                      key={range.label}
-                      onClick={() => update({ budgetRange: i })}
-                      className={cn(
-                        "cursor-pointer rounded-xl border-2 px-4 py-3 text-sm font-medium transition-all hover:shadow-sm",
-                        form.budgetRange === i
-                          ? "border-primary-600 bg-primary-600/10 text-primary"
-                          : "border-neutral-300 text-neutral-800 hover:border-primary-600/40",
-                      )}
-                    >
-                      {range.label}
-                    </button>
-                  ))}
+                  {BUDGET_RANGES.map((range) => {
+                    const isSelected = form.budgetRange?.min === range.min && form.budgetRange?.max === range.max;
+                    return (
+                      <button
+                        key={range.label}
+                        onClick={() => update({ budgetRange: { min: range.min, max: range.max }, customBudget: undefined })}
+                        className={cn(
+                          "cursor-pointer rounded-xl border-2 px-4 py-3 text-sm font-medium transition-all hover:shadow-sm",
+                          isSelected
+                            ? "border-primary-600 bg-primary-600/10 text-primary"
+                            : "border-neutral-300 text-neutral-800 hover:border-primary-600/40",
+                        )}
+                      >
+                        {range.label}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 <div className="mb-6">
@@ -385,8 +464,11 @@ const NewProject = () => {
                     <Input
                       id="customBudget"
                       type="number"
-                      value={form.customBudget}
-                      onChange={(e) => update({ customBudget: e.target.value })}
+                      value={form.customBudget || ""}
+                      onChange={(e) => {
+                        const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                        update({ customBudget: value, budgetRange: undefined });
+                      }}
                       placeholder="0"
                       className="pl-7"
                     />
@@ -400,8 +482,11 @@ const NewProject = () => {
                   <Input
                     id="startDate"
                     type="date"
-                    value={form.startDate}
-                    onChange={(e) => update({ startDate: e.target.value })}
+                    value={form.startDate ? form.startDate.toISOString().split('T')[0] : ""}
+                    onChange={(e) => {
+                      const value = e.target.value ? new Date(e.target.value) : undefined;
+                      update({ startDate: value });
+                    }}
                     className="mt-1"
                   />
                 </div>
@@ -428,7 +513,7 @@ const NewProject = () => {
                   </div>
 
                   {/* Photos / Design summary */}
-                  {(form.uploadedPhotos.length > 0 || attachedDesign) && (
+                  {(form.images.length > 0 || attachedDesign) && (
                     <div className="border-t border-border pt-4">
                       <p className="text-xs text-muted-foreground mb-2">
                         {attachedDesign ? "Attached Design" : "Uploaded Photos"}
@@ -445,7 +530,7 @@ const NewProject = () => {
                         </div>
                       ) : (
                         <div className="flex gap-2">
-                          {form.uploadedPhotos.slice(0, 4).map((photo) => (
+                          {form.images.slice(0, 4).map((photo) => (
                             <img
                               key={photo.id}
                               src={photo.preview}
@@ -453,9 +538,9 @@ const NewProject = () => {
                               className="h-12 w-12 rounded-lg object-cover border border-border"
                             />
                           ))}
-                          {form.uploadedPhotos.length > 4 && (
+                          {form.images.length > 4 && (
                             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted text-xs font-medium text-muted-foreground">
-                              +{form.uploadedPhotos.length - 4}
+                              +{form.images.length - 4}
                             </div>
                           )}
                         </div>
@@ -476,15 +561,22 @@ const NewProject = () => {
                   {form.address && (
                     <div className="border-t border-border pt-4">
                       <p className="text-xs text-muted-foreground">Address</p>
-                      <p className="text-sm text-foreground">{form.address}</p>
+                      <p className="text-sm text-foreground">
+                        {form.address.street && `${form.address.street}, `}
+                        {form.address.city && `${form.address.city}, `}
+                        {form.address.state && `${form.address.state} `}
+                        {form.address.zipCode}
+                      </p>
                     </div>
                   )}
                   <div className="border-t border-border pt-4">
                     <p className="text-xs text-muted-foreground">Budget</p>
                     <p className="font-medium text-foreground">
                       {form.customBudget
-                        ? `$${Number(form.customBudget).toLocaleString()}`
-                        : selectedBudget?.label}
+                        ? `$${form.customBudget.toLocaleString()}`
+                        : selectedBudget
+                        ? `$${selectedBudget.min.toLocaleString()} - $${selectedBudget.max.toLocaleString()}`
+                        : "Not specified"}
                     </p>
                   </div>
                   {form.startDate && (
@@ -493,7 +585,7 @@ const NewProject = () => {
                         Preferred Start Date
                       </p>
                       <p className="text-sm text-foreground">
-                        {new Date(form.startDate).toLocaleDateString()}
+                        {form.startDate.toLocaleDateString()}
                       </p>
                     </div>
                   )}

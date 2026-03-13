@@ -15,10 +15,30 @@ interface AuthState {
   // Actions
   login: (data: LoginFormValues) => Promise<UserResponse>;
   signup: (data: RegisterFormValues) => Promise<void>;
-  verifyEmail: (token: string) => Promise<void>;
+  verifyEmail: (token: string) => Promise<UserResponse>;
   // resendVerificationEmail: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   resetPassword: (data: ResetPasswordForm) => Promise<void>;
+  updateAvatar: (file: File) => Promise<void>;
+  removeAvatar: () => Promise<void>;
+  updateProfile: (data: {
+    firstName?: string;
+    lastName?: string;
+    phoneNumber?: string;
+    address?: {
+      street?: string;
+      city?: string;
+      state?: string;
+      zipCode?: string;
+    };
+    contractor?: {
+      companyName?: string;
+      bio?: string;
+      experienceYears?: number;
+      specialties?: string[];
+    };
+  }) => Promise<void>;
+  uploadPaperwork: (licenses?: File[], insurances?: File[]) => Promise<void>;
   logout: () => void;
   setUser: (user: User) => void;
 }
@@ -36,9 +56,10 @@ export const useAuth = create<AuthState>()(
         set({ isLoading: true });
         try {
           const response = await authService.login(data);
+          console.log(response)
           set({
             user: response.user,
-            token: response.token,
+            token: response.tokens.accessToken,
             role: response.user.role,
             isAuthenticated: true,
             isLoading: false,
@@ -69,12 +90,13 @@ export const useAuth = create<AuthState>()(
           const response = await authService.verifyEmail(token);
           set({
             user: response.user,
-            token: response.token,
+            token: response.tokens.accessToken,
             role: response.user.role,
             isAuthenticated: true,
             isLoading: false,
           });
           set({ isLoading: false });
+          return response;
         } catch (error) {
           set({ isLoading: false });
           throw error;
@@ -110,6 +132,87 @@ export const useAuth = create<AuthState>()(
           set({ isLoading: false})
         } catch (error) {
           set({ isLoading: false})
+          throw error;
+        }
+      },
+
+      updateAvatar: async (file: File) => {
+        set({ isLoading: true });
+        try {
+          const response = await authService.uploadAvatar(file);
+
+          set((state) => ({
+            user: state.user
+              ? {
+                  ...state.user,
+                  avatar: response.avatarUrl ?? undefined,
+                }
+              : state.user,
+            isLoading: false,
+          }));
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      removeAvatar: async () => {
+        set({ isLoading: true });
+        try {
+          await authService.removeAvatar();
+
+          set((state) => ({
+            user: state.user
+              ? {
+                  ...state.user,
+                  avatar: undefined,
+                }
+              : state.user,
+            isLoading: false,
+          }));
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      updateProfile: async (data) => {
+        set({ isLoading: true });
+        try {
+          const response = await authService.updateProfile(data);
+          set((state) => ({
+            user: state.user
+              ? {
+                  ...state.user,
+                  ...response.user,
+                }
+              : response.user,
+            isLoading: false,
+          }));
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      uploadPaperwork: async (licenses?: File[], insurances?: File[]) => {
+        set({ isLoading: true });
+        try {
+          const response = await authService.uploadPaperwork(
+            licenses,
+            insurances,
+          );
+          set((state) => ({
+            user: state.user
+              ? {
+                  ...state.user,
+                  ...response.user,
+                }
+              : response.user,
+            isLoading: false,
+          }));
+        } catch (error) {
+          set({ isLoading: false });
           throw error;
         }
       },

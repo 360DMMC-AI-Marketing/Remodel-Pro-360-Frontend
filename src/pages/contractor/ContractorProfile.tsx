@@ -1,0 +1,669 @@
+import { Button } from "@/components/atoms/Button";
+import { Input } from "@/components/atoms/Input";
+import { Textarea } from "@/components/atoms/Textarea";
+import { Card } from "@/components/molecules/Card";
+import { useRef, useState, useEffect } from "react";
+import type { DragEvent, ChangeEvent } from "react";
+import {
+  Shield,
+  Upload,
+  FileText,
+  X,
+  AlertCircle,
+  CheckCircle,
+  BadgeCheck,
+  //   Camera,
+} from "lucide-react";
+import { toast } from "sonner";
+import { AlertDialog } from "@/components/ui/alert-dialog";
+import { useAuth } from "@/stores/useAuth";
+import { contractorService } from "@/api/contractor";
+import type { VettingRequestData } from "@/api/contractor";
+
+interface UploadedDoc {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  file: File;
+  preview?: string;
+  status: "pending" | "verified" | "rejected";
+  uploadedAt: string;
+}
+
+const formatSize = (bytes: number) => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const ContractorProfile = () => {
+  const [basicInfo, setBasicInfo] = useState({
+    firstName: "",
+    lastName: "",
+    companyName: "",
+    bio: "",
+    phone: "",
+    city: "",
+    state: "",
+    yearsOfExperience: "",
+    specialties: "",
+  });
+  const [vettingFiles, setVettingFiles] = useState<UploadedDoc[]>([]);
+  const [draggingFiles, setDraggingFiles] = useState(false);
+  const [isSubmittingVetting, setIsSubmittingVetting] = useState(false);
+  const [vettingRequest, setVettingRequest] = useState<
+    VettingRequestData | null | undefined
+  >(undefined);
+  const [vettingForm, setVettingForm] = useState({
+    licenseNumber: "",
+    licenseExpiry: "",
+    insuranceProvider: "",
+    insuranceExpiry: "",
+  });
+  const vettingFilesRef = useRef<HTMLInputElement>(null);
+  const avatarRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    contractorService
+      .getVettingStatus()
+      .then(setVettingRequest)
+      .catch(() => setVettingRequest(null));
+  }, []);
+
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isRemovingAvatar, setIsRemovingAvatar] = useState(false);
+  const [isDeleteAvatarDialogOpen, setIsDeleteAvatarDialogOpen] =
+    useState(false);
+  const processVettingFiles = (files: FileList | null) => {
+    if (!files) return;
+    const docs: UploadedDoc[] = Array.from(files).map((f) => ({
+      id: crypto.randomUUID(),
+      name: f.name,
+      size: f.size,
+      type: f.type,
+      file: f,
+      status: "pending" as const,
+      uploadedAt: new Date().toISOString(),
+    }));
+    setVettingFiles((prev) => [...prev, ...docs]);
+  };
+
+  const removeVettingFile = (id: string) => {
+    setVettingFiles((prev) => prev.filter((f) => f.id !== id));
+  };
+
+  const handleVettingDrop = (e: DragEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setDraggingFiles(false);
+    processVettingFiles(e.dataTransfer.files);
+  };
+
+  const handleVettingDragOver = (e: DragEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setDraggingFiles(true);
+  };
+
+  const handleVettingDragLeave = (e: DragEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setDraggingFiles(false);
+  };
+
+  const { user, updateAvatar, removeAvatar, updateProfile } = useAuth();
+
+  useEffect(() => {
+    if (!user) return;
+    setBasicInfo({
+      firstName: user.firstName ?? "",
+      lastName: user.lastName ?? "",
+      companyName: user.contractor?.companyName ?? "",
+      bio: user.contractor?.bio ?? "",
+      phone: user.phone ?? "",
+      city: user.address?.city ?? "",
+      state: user.address?.state ?? "",
+      yearsOfExperience: user.contractor?.experienceYears
+        ? String(user.contractor.experienceYears)
+        : "",
+      specialties: user.contractor?.specialties?.join(", ") ?? "",
+    });
+  }, [user]);
+
+  const handleAvatarChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!selectedFile) return;
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
+    if (!allowedTypes.includes(selectedFile.type)) {
+      toast.error("Only JPG, PNG, or WEBP images are allowed.");
+      return;
+    }
+
+    const maxSizeInBytes = 5 * 1024 * 1024;
+    if (selectedFile.size > maxSizeInBytes) {
+      toast.error("Image size must be less than 5MB.");
+      return;
+    }
+
+    try {
+      setIsUploadingAvatar(true);
+      await updateAvatar(selectedFile);
+      toast.success("Profile picture updated successfully.");
+    } catch {
+      toast.error("Failed to update profile picture.");
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const handleAvatarRemove = async () => {
+    if (!user?.avatar) return;
+
+    try {
+      setIsRemovingAvatar(true);
+      await removeAvatar();
+      setIsDeleteAvatarDialogOpen(false);
+      toast.success("Profile picture removed successfully.");
+    } catch {
+      toast.error("Failed to remove profile picture.");
+    } finally {
+      setIsRemovingAvatar(false);
+    }
+  };
+
+  const handleSubmitVetting = async () => {
+    const { licenseNumber, licenseExpiry, insuranceProvider, insuranceExpiry } =
+      vettingForm;
+    if (!licenseNumber || !licenseExpiry || !insuranceProvider || !insuranceExpiry) {
+      toast.error("Please fill in all required fields.");
+      return;
+    }
+    if (vettingFiles.length === 0) {
+      toast.error("Please upload at least one document.");
+      return;
+    }
+    try {
+      setIsSubmittingVetting(true);
+      await contractorService.submitVettingRequest({
+        licenseNumber,
+        licenseExpiry,
+        insuranceProvider,
+        insuranceExpiry,
+        files: vettingFiles.map((f) => f.file),
+      });
+      const updated = await contractorService.getVettingStatus();
+      setVettingRequest(updated);
+      setVettingFiles([]);
+      setVettingForm({
+        licenseNumber: "",
+        licenseExpiry: "",
+        insuranceProvider: "",
+        insuranceExpiry: "",
+      });
+      toast.success("Documents submitted. Awaiting admin review.");
+    } catch {
+      toast.error("Failed to submit. Please try again.");
+    } finally {
+      setIsSubmittingVetting(false);
+    }
+  };
+
+  const handleSaveBasicInfo = async () => {
+    const parsedExperienceYears = basicInfo.yearsOfExperience.trim()
+      ? Number(basicInfo.yearsOfExperience)
+      : undefined;
+    const parsedSpecialties = basicInfo.specialties
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    if (
+      parsedExperienceYears !== undefined &&
+      (Number.isNaN(parsedExperienceYears) || parsedExperienceYears < 0)
+    ) {
+      toast.error("Years of experience must be a valid non-negative number.");
+      return;
+    }
+
+    try {
+      await updateProfile({
+        firstName: basicInfo.firstName.trim(),
+        lastName: basicInfo.lastName.trim(),
+        phoneNumber: basicInfo.phone.trim() || undefined,
+        address: {
+          city: basicInfo.city.trim() || undefined,
+          state: basicInfo.state.trim() || undefined,
+        },
+        contractor: {
+          companyName: basicInfo.companyName.trim() || undefined,
+          bio: basicInfo.bio.trim() || undefined,
+          experienceYears: parsedExperienceYears,
+          specialties: parsedSpecialties,
+        },
+      });
+      toast.success("Basic information updated successfully.");
+    } catch {
+      toast.error("Failed to update basic information.");
+    }
+  };
+
+  const BASE_IMAGE_URL = "https://rp360-uploads.s3.us-east-1.amazonaws.com/";
+
+  return (
+    <div>
+      <AlertDialog
+        open={isDeleteAvatarDialogOpen}
+        title="Delete profile picture?"
+        description="Removing your profile picture will replace it with your initials across the platform."
+        confirmLabel="Delete picture"
+        cancelLabel="Keep picture"
+        isLoading={isRemovingAvatar}
+        onConfirm={handleAvatarRemove}
+        onClose={() => setIsDeleteAvatarDialogOpen(false)}
+      />
+      <div className="flex flex-col gap-1">
+        <h3>Contractor Profile</h3>
+        <p className="text-neutral-500">
+          Manage your profile, license, and insurance documents.
+        </p>
+      </div>
+      <Card className="mt-10 max-w-2xl mx-auto">
+        <h6 className="font-semibold">Profile Picture</h6>
+        <input
+          ref={avatarRef}
+          type="file"
+          accept="image/png,image/jpeg,image/jpg,image/webp"
+          className="hidden"
+          onChange={handleAvatarChange}
+        />
+        <div className="flex items-start gap-4 mt-4">
+          <div className="relative size-24 bg-linear-to-br from-primary-500 to-primary-700 rounded-full">
+            {user?.avatar ? (
+              <img
+                src={BASE_IMAGE_URL + user.avatar}
+                alt="Profile Picture"
+                className="size-full object-cover rounded-full"
+              />
+            ) : (
+              <div className="size-full flex items-center justify-center cursor-default">
+                <span className="text-2xl text-white font-medium">
+                  {user?.firstName?.[0]}
+                  {user?.lastName?.[0]}
+                </span>
+              </div>
+            )}
+            {user?.role === "contractor" && user?.contractor?.isVerified && (
+              <span className="absolute bottom-0 right-0 flex items-center justify-center rounded-full bg-white p-1 shadow-sm">
+                <BadgeCheck className="h-5 w-5 text-green-600" />
+              </span>
+            )}
+            {/* <div className="absolute inset-0 cursor-pointer bg-black/50 flex items-center justify-center rounded-full opacity-0 hover:opacity-100 transition-opacity">
+              <Camera className="size-8 text-white" />
+            </div> */}
+          </div>
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-col">
+              <span>
+                {user?.firstName} {user?.lastName}
+              </span>
+              <span className="text-sm text-neutral-500">{user?.email}</span>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="xs"
+                className="mt-2"
+                onClick={() => avatarRef.current?.click()}
+                disabled={isUploadingAvatar || isRemovingAvatar}
+              >
+                {isUploadingAvatar ? "Uploading..." : "Change Picture"}
+              </Button>
+              <Button
+                variant="danger"
+                size="xs"
+                className="mt-2"
+                onClick={() => setIsDeleteAvatarDialogOpen(true)}
+                disabled={
+                  !user?.avatar || isUploadingAvatar || isRemovingAvatar
+                }
+              >
+                {isRemovingAvatar ? "Removing..." : "Remove Picture"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Card>
+      <Card className="mt-10 max-w-2xl mx-auto">
+        <h6 className="font-medium mb-3">Basic Information</h6>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex flex-col gap-2">
+            <label htmlFor="firstName">First Name</label>
+            <Input
+              id="firstName"
+              placeholder="ex: John"
+              value={basicInfo.firstName}
+              onChange={(e) =>
+                setBasicInfo({ ...basicInfo, firstName: e.target.value })
+              }
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label htmlFor="lastName">Last Name</label>
+            <Input
+              id="lastName"
+              placeholder="ex: Doe"
+              value={basicInfo.lastName}
+              onChange={(e) =>
+                setBasicInfo({ ...basicInfo, lastName: e.target.value })
+              }
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label htmlFor="phone">Phone</label>
+            <Input
+              id="phone"
+              placeholder="ex: +12125551234"
+              value={basicInfo.phone}
+              onChange={(e) =>
+                setBasicInfo({ ...basicInfo, phone: e.target.value })
+              }
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label htmlFor="city">City</label>
+            <Input
+              id="city"
+              placeholder="ex: New York"
+              value={basicInfo.city}
+              onChange={(e) =>
+                setBasicInfo({
+                  ...basicInfo,
+                  city: e.target.value,
+                })
+              }
+            />
+          </div>
+          <div className="flex flex-col gap-2 col-span-1 md:col-span-2">
+            <label htmlFor="state">State</label>
+            <Input
+              id="state"
+              placeholder="ex: NY"
+              value={basicInfo.state}
+              onChange={(e) =>
+                setBasicInfo({ ...basicInfo, state: e.target.value })
+              }
+            />
+          </div>
+          <div className="flex flex-col gap-2 col-span-1 md:col-span-2">
+            <label htmlFor="specialties">Specialties</label>
+            <Input
+              id="specialties"
+              placeholder="ex: Plumbing, HVAC, Electrical"
+              value={basicInfo.specialties}
+              onChange={(e) =>
+                setBasicInfo({ ...basicInfo, specialties: e.target.value })
+              }
+            />
+          </div>
+          <div className="flex flex-col gap-2 col-span-1 md:col-span-2">
+            <label htmlFor="companyName">Company Name</label>
+            <Input
+              id="companyName"
+              value={basicInfo.companyName}
+              onChange={(e) => {
+                setBasicInfo({ ...basicInfo, companyName: e.target.value})
+              }}
+            />
+          </div>
+          <div className="flex flex-col gap-2 col-span-1 md:col-span-2">
+            <label htmlFor="years">Years of Experience</label>
+            <Input
+              id="years"
+              type="number"
+              min={0}
+              value={basicInfo.yearsOfExperience}
+              onChange={(e) =>
+                setBasicInfo({ ...basicInfo, yearsOfExperience: e.target.value })
+              }
+            />
+          </div>
+          <div className="flex flex-col gap-2 col-span-1 md:col-span-2">
+            <label htmlFor="bio">Bio</label>
+            <Textarea
+              id="bio"
+              rows={4}
+              maxLength={200}
+              value={basicInfo.bio}
+              onChange={(e) =>
+                setBasicInfo({ ...basicInfo, bio: e.target.value })
+              }
+            />
+          </div>
+        </div>
+        <div className="flex justify-end mt-4">
+          <Button variant="primary" size="sm" onClick={handleSaveBasicInfo}>
+            Save Changes
+          </Button>
+        </div>
+      </Card>
+      <Card className="mt-10 max-w-2xl mx-auto">
+        <div className="mb-6">
+          <h6 className="font-medium mb-3 flex items-center gap-2">
+            <Shield className="text-primary-500" />
+            License and Insurance Verification
+          </h6>
+          <p className="text-sm text-muted-foreground">
+            Submit your contractor license and proof of insurance for
+            verification. Once submitted, your request will be reviewed by an
+            admin. You will be notified of the outcome.
+          </p>
+        </div>
+
+        {/* Loading */}
+        {vettingRequest === undefined && (
+          <p className="text-sm text-muted-foreground py-4">
+            Loading verification status...
+          </p>
+        )}
+
+        {/* Pending banner */}
+        {vettingRequest?.status === "pending" && (
+          <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-blue-800">
+            <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-sm">Under Review</p>
+              <p className="text-sm mt-1">
+                Your documents were submitted on{" "}
+                {new Date(vettingRequest.submittedAt).toLocaleDateString()}.
+                An admin will review them shortly. You cannot resubmit while a
+                review is in progress.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Approved banner */}
+        {vettingRequest?.status === "approved" && (
+          <div className="flex items-start gap-3 rounded-xl border border-green-200 bg-green-50 p-4 text-green-800">
+            <CheckCircle className="h-5 w-5 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-sm">Verified</p>
+              <p className="text-sm mt-1">
+                Your contractor profile has been verified. You can now bid on
+                projects that require verified status. Thank you for providing the
+                necessary documentation!
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Rejected / More info needed banner */}
+        {(vettingRequest?.status === "rejected" ||
+          vettingRequest?.status === "more_info_needed") && (
+          <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-800 mb-6">
+            <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-sm">
+                {vettingRequest.status === "rejected"
+                  ? "Request Rejected"
+                  : "More Information Needed"}
+              </p>
+              {vettingRequest.adminNotes && (
+                <p className="text-sm mt-1 font-medium">
+                  Admin note: {vettingRequest.adminNotes}
+                </p>
+              )}
+              <p className="text-sm mt-1">
+                Please update your information below and resubmit.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Submission form — shown only when no pending/approved request */}
+        {(vettingRequest === null ||
+          vettingRequest?.status === "rejected" ||
+          vettingRequest?.status === "more_info_needed") && (
+          <div className="space-y-6 mt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-2">
+                <label htmlFor="licenseNumber" className="text-sm font-medium">
+                  License Number <span className="text-destructive">*</span>
+                </label>
+                <Input
+                  id="licenseNumber"
+                  placeholder="ex: LIC-12345"
+                  value={vettingForm.licenseNumber}
+                  onChange={(e) =>
+                    setVettingForm({ ...vettingForm, licenseNumber: e.target.value })
+                  }
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label htmlFor="licenseExpiry" className="text-sm font-medium">
+                  License Expiry <span className="text-destructive">*</span>
+                </label>
+                <Input
+                  id="licenseExpiry"
+                  type="date"
+                  value={vettingForm.licenseExpiry}
+                  onChange={(e) =>
+                    setVettingForm({ ...vettingForm, licenseExpiry: e.target.value })
+                  }
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label htmlFor="insuranceProvider" className="text-sm font-medium">
+                  Insurance Provider <span className="text-destructive">*</span>
+                </label>
+                <Input
+                  id="insuranceProvider"
+                  placeholder="ex: State Farm"
+                  value={vettingForm.insuranceProvider}
+                  onChange={(e) =>
+                    setVettingForm({ ...vettingForm, insuranceProvider: e.target.value })
+                  }
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label htmlFor="insuranceExpiry" className="text-sm font-medium">
+                  Insurance Expiry <span className="text-destructive">*</span>
+                </label>
+                <Input
+                  id="insuranceExpiry"
+                  type="date"
+                  value={vettingForm.insuranceExpiry}
+                  onChange={(e) =>
+                    setVettingForm({ ...vettingForm, insuranceExpiry: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Supporting Documents{" "}
+                <span className="text-xs text-muted-foreground font-normal">
+                  (license &amp; insurance files)
+                </span>{" "}
+                <span className="text-destructive">*</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => vettingFilesRef.current?.click()}
+                onDragOver={handleVettingDragOver}
+                onDragLeave={handleVettingDragLeave}
+                onDrop={handleVettingDrop}
+                className={`flex w-full flex-col items-center gap-2 cursor-pointer rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
+                  draggingFiles
+                    ? "border-primary-500 bg-primary-500/5"
+                    : "border-neutral-300 hover:border-primary-600/50 hover:bg-muted-500/50"
+                }`}
+              >
+                <Upload className="h-8 w-8 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    Drop files here or click to upload
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    PDF, JPG, PNG up to 10MB
+                  </p>
+                </div>
+              </button>
+              <input
+                ref={vettingFilesRef}
+                type="file"
+                className="hidden"
+                accept=".pdf,.jpg,.jpeg,.png"
+                multiple
+                onChange={(e) => processVettingFiles(e.target.files)}
+              />
+              {vettingFiles.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {vettingFiles.map((file) => (
+                    <div
+                      key={file.id}
+                      className="flex items-center justify-between rounded-lg border border-border bg-card p-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium text-foreground truncate max-w-50">
+                            {file.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatSize(file.size)}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => removeVettingFile(file.id)}
+                        className="cursor-pointer rounded-full p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleSubmitVetting}
+                disabled={isSubmittingVetting}
+              >
+                {isSubmittingVetting ? "Submitting..." : "Submit for Verification"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+};
+
+export default ContractorProfile;

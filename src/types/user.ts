@@ -1,5 +1,3 @@
-type VerificationStatus = "unverified" | "pending" | "verified" | "rejected" | "expired" | "unverified"
-
 export interface User {
   id: string;
   email: string;
@@ -20,23 +18,21 @@ export interface User {
   };
   contractor?: {
     companyName: string;
-    license: {
+    bio?: string;
+    isVerified: boolean;
+    verifiedAt?: Date;
+    licenses: {
       number: string;
-      state: string;
-      verificationStatus: VerificationStatus;
-      isVerified: boolean;
+      expiry?: Date;
       fileKey: string;
-      verifiedAt?: Date;
-      expiresAt?: Date;
-    };
-    insurance: {
+    }[];
+    insurances: {
       provider: string;
-      policyNumber: string;
-      verified: boolean;
-      verifiedAt?: Date;
-      expiresAt?: Date;
-    };
+      expiry?: Date;
+      fileKey: string;
+    }[];
     specialties: string[];
+    experienceYears?: number;
     serviceArea: { type: "Polygon"; coordinates: number[][][] };
     subscription: {
       tier: "free" | "professional" | "enterprise";

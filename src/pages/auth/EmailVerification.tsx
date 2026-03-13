@@ -3,6 +3,7 @@ import { Spinner } from "@/components/atoms/Spinner";
 import { useAuth } from "@/stores/useAuth";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import logo from "../../assets/logo-transparent.png";
 
 const EmailVerification = () => {
   const navigate = useNavigate();
@@ -20,10 +21,10 @@ const EmailVerification = () => {
     }
     const verify = async () => {
       try {
-        await verifyEmail(token);
+        const response = await verifyEmail(token);
         setStatus("success");
         setMessage("Email verified successfully");
-        navigate("/homeowner/dashboard");
+        navigate(`/${response.user.role}/dashboard`);
       } catch (error) {
         setStatus("error");
         setMessage("Verification link is invalid or expired.");
@@ -35,7 +36,7 @@ const EmailVerification = () => {
   return (
     <div className="bg-neutral-100 h-screen w-screen flex justify-center items-center">
       <div className="text-center">
-        <h2 className="">RP360</h2>
+        <img src={logo} alt="RP360 Logo" className="w-64 mx-auto"/>
         <p className="text-lg font-bold">Verify your email</p>
         <p className="text-sm text-neutral-500">
           Please check your email for a verification link

@@ -2,20 +2,25 @@ import { Navigate, Outlet } from "react-router-dom";
 import { Routes, Route } from "react-router-dom";
 import { Toaster } from "./components/ui/sonner";
 import LandingPage from "./pages/LandingPage";
-import Login from "./pages/auth/Login";
-import Register from "./pages/auth/Register";
 import HowItWorks from "./pages/HowItWorks";
 import CommingSoon from "./pages/CommingSoon";
-import Dashboard from "./pages/homeowner/Dashboard";
-import { useAuth } from "./stores/useAuth";
 import NotFound from "./pages/NotFound";
+import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
 import EmailVerificationInfo from "./pages/auth/EmailVerificationInfo";
 import EmailVerification from "./pages/auth/EmailVerification";
-import HomeownerLayout from "./pages/homeowner/HomeownerLayout";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
+import HomeownerDashboard from "./pages/homeowner/HomeownerDashboard";
+import HomeownerLayout from "./pages/homeowner/HomeownerLayout";
 import Projects from "./pages/homeowner/Projects";
 import NewProject from "./pages/homeowner/NewProject";
+import ContractorDashboard from "./pages/contractor/ContractorDashboard";
+import { useAuth } from "./stores/useAuth";
+import Project from "./pages/homeowner/Project";
+import ContractorProfile from "./pages/contractor/ContractorProfile";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import ContractorVetting from "./pages/admin/ContractorVetting";
 
 interface ProtectedRoutesProps {
   allowedRole?: "homeowner" | "contractor" | "admin";
@@ -63,13 +68,23 @@ function App() {
 
         <Route element={<ProtectedRoutes allowedRole="homeowner" />}>
           <Route path="/homeowner" element={<HomeownerLayout />}>
-            <Route path="/homeowner/dashboard" element={<Dashboard />} />
+            <Route path="/homeowner/dashboard" element={<HomeownerDashboard />} />
             <Route path="/homeowner/projects" element={<Projects />} />
             <Route path="/homeowner/projects/new" element={<NewProject />} />
+            <Route path="/homeowner/projects/:id" element={<Project />} />
           </Route>
         </Route>
         <Route element={<ProtectedRoutes allowedRole="contractor" />}>
-          <Route path="/contractor" element={<Dashboard />} />
+          <Route path="/contractor" element={<HomeownerLayout />} >
+            <Route path="/contractor/dashboard" element={<ContractorDashboard />} />
+            <Route path="/contractor/profile" element={<ContractorProfile />} />
+          </Route>
+        </Route>
+        <Route element={<ProtectedRoutes allowedRole="admin" />}>
+          <Route path="/admin" element={<HomeownerLayout />} >
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/vetting" element={<ContractorVetting />} />
+          </Route>
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>

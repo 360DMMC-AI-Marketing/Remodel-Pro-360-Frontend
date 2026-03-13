@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/stores/useAuth";
 
-const Dashboard = () => {
+const HomeownerDashboard = () => {
     const { user } = useAuth();
   return (
     <>
@@ -127,5 +127,5 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard;
+export default HomeownerDashboard;
 
