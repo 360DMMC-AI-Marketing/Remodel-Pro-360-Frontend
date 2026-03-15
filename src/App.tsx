@@ -21,6 +21,8 @@ import Project from "./pages/homeowner/Project";
 import ContractorProfile from "./pages/contractor/ContractorProfile";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import ContractorVetting from "./pages/admin/ContractorVetting";
+import ContractorProjects from "./pages/contractor/ContractorProjects";
+import ContractorProjectDetails from "./pages/contractor/ContractorProjectDetails";
 
 interface ProtectedRoutesProps {
   allowedRole?: "homeowner" | "contractor" | "admin";
@@ -78,6 +80,11 @@ function App() {
           <Route path="/contractor" element={<HomeownerLayout />} >
             <Route path="/contractor/dashboard" element={<ContractorDashboard />} />
             <Route path="/contractor/profile" element={<ContractorProfile />} />
+            <Route path="/contractor/projects" element={<ContractorProjects />} />
+            <Route
+              path="/contractor/projects/:id"
+              element={<ContractorProjectDetails />}
+            />
           </Route>
         </Route>
         <Route element={<ProtectedRoutes allowedRole="admin" />}>

@@ -34,7 +34,7 @@ const Header = () => {
             {isAuthenticated ? (
               <>
                 <div className="flex items-center space-x-4">
-                  <Link to={`${user?.role}/dashboard`}>
+                  <Link to={`/${user?.role}/dashboard`}>
                     {user?.avatar ? (
                       <Avatar
                         src={user.avatar}

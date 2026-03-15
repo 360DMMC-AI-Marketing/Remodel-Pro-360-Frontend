@@ -103,3 +103,16 @@ export const deleteProject = async (projectId: string) => {
     throw error;
   };
 };
+
+export const updateProjectStatus = async (
+  projectId: string,
+  status: "draft" | "bidding",
+) => {
+  try {
+    const response = await api.patch(`/projects/${projectId}/status`, { status });
+    return response.data;
+  } catch (error) {
+    console.error("Error updating project status:", error);
+    throw error;
+  }
+};
