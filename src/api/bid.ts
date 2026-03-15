@@ -79,6 +79,11 @@ export const bidService = {
     return (response.data.data ?? []) as HomeownerBid[];
   },
 
+  getBidById: async (bidId: string) => {
+    const response = await api.get(`/bids/${bidId}`);
+    return response.data.data as BidRecord;
+  },
+
   submitBid: async (payload: SubmitBidPayload) => {
     const response = await api.post("/bids", payload);
     return response.data.data as BidRecord;
