@@ -6,6 +6,9 @@ import { useState } from "react";
 import { useAuth } from "@/stores/useAuth";
 import { Avatar } from "../atoms/Avatar";
 import logo from "@/assets/logo-transparent.png";
+
+const BASE_IMAGE_URL = "https://rp360-uploads.s3.us-east-1.amazonaws.com/";
+
 const Header = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { logout, isAuthenticated, user } = useAuth();
@@ -37,7 +40,7 @@ const Header = () => {
                   <Link to={`/${user?.role}/dashboard`}>
                     {user?.avatar ? (
                       <Avatar
-                        src={user.avatar}
+                        src={`${BASE_IMAGE_URL}${user.avatar}`}
                         size={48}
                         className="text-primary-700"
                       />

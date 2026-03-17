@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { createProject } from "@/api/porject";
+import LocationPickerMap from "@/components/ui/LocationPickerMap";
 
 const STEPS = [
   "Room Type",
@@ -59,6 +60,10 @@ interface ProjectFormData {
     city: string;
     state: string;
     zipCode: string;
+    coordinates?: {
+      type: "Point";
+      coordinates: [number, number];
+    };
   };
   budgetRange?: {
     min: number;
@@ -74,6 +79,7 @@ const NewProject = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<ProjectFormData>({
     roomType: "",
@@ -92,12 +98,19 @@ const NewProject = () => {
 
   const canNext = () => {
     if (step === 0) return !!form.roomType;
-    if (step === 1) return true; // photos/design step is optional
+    if (step === 1) return form.images.length > 0;
     if (step === 2)
       return (
-        form.title.trim().length >= 3 && form.description.trim().length >= 10
+        form.title.trim().length >= 3 &&
+        form.description.trim().length >= 10 &&
+        !!form.address?.street.trim() &&
+        !!form.address?.city.trim() &&
+        !!form.address?.state.trim() &&
+        !!form.address?.zipCode.trim() &&
+        !!form.address?.coordinates?.coordinates?.length
       );
-    if (step === 3) return !!form.budgetRange || !!form.customBudget;
+    if (step === 3)
+      return (!!form.budgetRange || !!form.customBudget) && !!form.startDate;
     return true;
   };
 
@@ -128,10 +141,10 @@ const NewProject = () => {
     : null;
 
   const handleSubmit = async () => {
-    console.log(form)
     setSubmitting(true);
+    console.log("Submitting project with data:", form);
     try {
-      await createProject(form);
+      await createProject(form, { saveAsDraft: false });
       toast.success("Project created successfully!");
       navigate("/homeowner/projects");
     } catch (error) {
@@ -143,6 +156,19 @@ const NewProject = () => {
       toast.error(errorMessage);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    setSavingDraft(true);
+    try {
+      await createProject(form, { saveAsDraft: true });
+      toast.success("Draft saved.");
+      navigate("/homeowner/projects");
+    } catch {
+      toast.error("Failed to save draft.");
+    } finally {
+      setSavingDraft(false);
     }
   };
 
@@ -239,8 +265,7 @@ const NewProject = () => {
                   Add Photos or a Design
                 </h2>
                 <p className="mb-5 text-sm text-muted-foreground">
-                  Upload photos of your space, or attach a saved design
-                  (optional)
+                  Upload at least one photo of your space
                 </p>
 
                 {/* Upload photos section */}
@@ -360,7 +385,7 @@ const NewProject = () => {
                 <div>
                   <label className="flex items-center gap-1 mb-2">
                     <MapPin size={18} />
-                    Address (optional)
+                    Address
                   </label>
                   <div className="space-y-3">
                     <Input
@@ -372,7 +397,8 @@ const NewProject = () => {
                           street: e.target.value,
                           city: form.address?.city || "",
                           state: form.address?.state || "",
-                          zipCode: form.address?.zipCode || ""
+                          zipCode: form.address?.zipCode || "",
+                          coordinates: form.address?.coordinates,
                         }
                       })}
                       placeholder="Street address"
@@ -387,7 +413,8 @@ const NewProject = () => {
                             street: form.address?.street || "",
                             city: e.target.value,
                             state: form.address?.state || "",
-                            zipCode: form.address?.zipCode || ""
+                            zipCode: form.address?.zipCode || "",
+                            coordinates: form.address?.coordinates,
                           }
                         })}
                         placeholder="City"
@@ -401,7 +428,8 @@ const NewProject = () => {
                             street: form.address?.street || "",
                             city: form.address?.city || "",
                             state: e.target.value,
-                            zipCode: form.address?.zipCode || ""
+                            zipCode: form.address?.zipCode || "",
+                            coordinates: form.address?.coordinates,
                           }
                         })}
                         placeholder="State"
@@ -416,10 +444,38 @@ const NewProject = () => {
                           street: form.address?.street || "",
                           city: form.address?.city || "",
                           state: form.address?.state || "",
-                          zipCode: e.target.value
+                          zipCode: e.target.value,
+                          coordinates: form.address?.coordinates,
                         }
                       })}
                       placeholder="Zip code"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="flex items-center gap-1 mb-2">
+                    <MapPin size={18} />
+                    Project Location
+                  </label>
+                  <p className="mb-2 text-xs text-muted-foreground">
+                    Click on the map to pin the exact project location.
+                  </p>
+                  <div className="overflow-hidden rounded-xl border border-border">
+                    <LocationPickerMap
+                      value={form.address?.coordinates?.coordinates ?? null}
+                      onChange={(coordinates) => {
+                        update({
+                          address: {
+                            street: form.address?.street || "",
+                            city: form.address?.city || "",
+                            state: form.address?.state || "",
+                            zipCode: form.address?.zipCode || "",
+                            coordinates: coordinates
+                              ? { type: "Point", coordinates }
+                              : undefined,
+                          },
+                        });
+                      }}
                     />
                   </div>
                 </div>
@@ -477,7 +533,7 @@ const NewProject = () => {
 
                 <div>
                   <label htmlFor="startDate">
-                    Preferred Start Date (optional)
+                    Preferred Start Date
                   </label>
                   <Input
                     id="startDate"
@@ -594,16 +650,26 @@ const NewProject = () => {
             )}
           </Card>
           <div className="mt-5 flex items-center justify-between">
-            <Button
-              variant="neutral"
-              size="sm"
-              className="flex items-center gap-2"
-              disabled={step === 0}
-              onClick={() => setStep(step - 1)}
-            >
-              <ArrowLeft size={18} />
-              Back
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="neutral"
+                size="sm"
+                className="flex items-center gap-2"
+                disabled={step === 0}
+                onClick={() => setStep(step - 1)}
+              >
+                <ArrowLeft size={18} />
+                Back
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={savingDraft || submitting}
+                onClick={() => void handleSaveDraft()}
+              >
+                {savingDraft ? "Saving..." : "Save as Draft"}
+              </Button>
+            </div>
             {step < STEPS.length - 1 ? (
               <Button
                 variant="primary"

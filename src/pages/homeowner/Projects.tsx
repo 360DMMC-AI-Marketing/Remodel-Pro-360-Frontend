@@ -1,13 +1,15 @@
 import { Button } from "@/components/atoms/Button";
-import { getProjects } from "@/api/porject";
+import { getProjectsWithFilters } from "@/api/porject";
 import { useAuth } from "@/stores/useAuth";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/molecules/Card";
 import { Skeleton } from "@/components/atoms/Skeleton";
 import { useNavigate } from "react-router-dom";
 import type { HomeownerProject } from "@/types/project";
+import { Input } from "@/components/atoms/Input";
+import imagePlaceholder from "@/assets/image-placeholder.png";
 
 const BASE_IMAGE_URL = "https://rp360-uploads.s3.us-east-1.amazonaws.com/";
 
@@ -16,6 +18,8 @@ const Projects = () => {
   const [projects, setProjects] = useState<HomeownerProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -23,7 +27,12 @@ const Projects = () => {
       try {
         setLoading(true);
         setError(null);
-        const data = await getProjects();
+        const data = await getProjectsWithFilters({
+          page: 1,
+          limit: 100,
+          search: searchTerm.trim() || undefined,
+          status: statusFilter,
+        });
         setProjects(Array.isArray(data?.projects) ? data.projects : []);
       } catch {
         setError("Failed to load your projects.");
@@ -33,7 +42,7 @@ const Projects = () => {
     };
 
     fetchProjects();
-  }, []);
+  }, [searchTerm, statusFilter]);
 
   return (
     <>
@@ -51,6 +60,31 @@ const Projects = () => {
             New Project
           </Button>
         </Link>
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-[1fr_240px]">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-400" />
+          <Input
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Search by title, room type, or description"
+            className="pl-9"
+          />
+        </div>
+        <select
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value)}
+          className="h-10 rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-700"
+        >
+          <option value="all">All statuses</option>
+          <option value="draft">Draft</option>
+          <option value="bidding">Bidding</option>
+          <option value="contracted">Contracted</option>
+          <option value="in_progress">In Progress</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
       </div>
 
       <div className="mt-8 space-y-4">
@@ -114,11 +148,22 @@ const Projects = () => {
                 <div className="flex flex-col space-y-3 md:flex-row md:items-start md:justify-between">
                   <div className="flex lg:items-center gap-3 flex-col lg:flex-row">
                     <div className="shrink-0">
-                      <img
-                        src={BASE_IMAGE_URL + project.images?.[0]?.url}
-                        alt={project.title}
-                        className="w-full h-32 md:size-32 object-cover rounded-lg"
-                      />
+                      {
+                        project.images && project.images.length > 0 ? (
+                          <img
+                            src={`${BASE_IMAGE_URL}${project.images[0].url}`}
+                            alt={project.title}
+                            className="w-full h-32 md:size-32 object-cover rounded-lg"
+                          />
+                        ) : (
+                          <img
+                            src={imagePlaceholder}
+                            alt={project.title}
+                            className="w-full h-32 md:size-32 object-cover rounded-lg"
+                          />
+                        )
+
+                      }
                     </div>
                     <div>
                       <div>

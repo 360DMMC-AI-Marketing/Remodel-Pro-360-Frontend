@@ -12,13 +12,13 @@ import {
   AlertCircle,
   CheckCircle,
   BadgeCheck,
-  //   Camera,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AlertDialog } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/stores/useAuth";
 import { contractorService } from "@/api/contractor";
 import type { VettingRequestData } from "@/api/contractor";
+import MyMap from "@/components/ui/MyMap";
 
 interface UploadedDoc {
   id: string;
@@ -30,6 +30,11 @@ interface UploadedDoc {
   status: "pending" | "verified" | "rejected";
   uploadedAt: string;
 }
+
+type ServiceAreaPolygon = {
+  type: "Polygon";
+  coordinates: number[][][];
+};
 
 const formatSize = (bytes: number) => {
   if (bytes < 1024) return `${bytes} B`;
@@ -50,6 +55,7 @@ const ContractorProfile = () => {
     specialties: "",
   });
   const [vettingFiles, setVettingFiles] = useState<UploadedDoc[]>([]);
+  const [serviceArea, setServiceArea] = useState<ServiceAreaPolygon | null>(null);
   const [draggingFiles, setDraggingFiles] = useState(false);
   const [isSubmittingVetting, setIsSubmittingVetting] = useState(false);
   const [vettingRequest, setVettingRequest] = useState<
@@ -126,6 +132,8 @@ const ContractorProfile = () => {
         : "",
       specialties: user.contractor?.specialties?.join(", ") ?? "",
     });
+    console.log(user.contractor?.serviceArea);
+    setServiceArea(user.contractor?.serviceArea ?? null);
   }, [user]);
 
   const handleAvatarChange = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -240,6 +248,7 @@ const ContractorProfile = () => {
           bio: basicInfo.bio.trim() || undefined,
           experienceYears: parsedExperienceYears,
           specialties: parsedSpecialties,
+          serviceArea,
         },
       });
       toast.success("Basic information updated successfully.");
@@ -256,6 +265,7 @@ const ContractorProfile = () => {
         open={isDeleteAvatarDialogOpen}
         title="Delete profile picture?"
         description="Removing your profile picture will replace it with your initials across the platform."
+        warningText="This action removes your current profile picture immediately and cannot be undone."
         confirmLabel="Delete picture"
         cancelLabel="Keep picture"
         isLoading={isRemovingAvatar}
@@ -371,28 +381,13 @@ const ContractorProfile = () => {
             />
           </div>
           <div className="flex flex-col gap-2">
-            <label htmlFor="city">City</label>
+            <label htmlFor="companyName">Company Name</label>
             <Input
-              id="city"
-              placeholder="ex: New York"
-              value={basicInfo.city}
-              onChange={(e) =>
-                setBasicInfo({
-                  ...basicInfo,
-                  city: e.target.value,
-                })
-              }
-            />
-          </div>
-          <div className="flex flex-col gap-2 col-span-1 md:col-span-2">
-            <label htmlFor="state">State</label>
-            <Input
-              id="state"
-              placeholder="ex: NY"
-              value={basicInfo.state}
-              onChange={(e) =>
-                setBasicInfo({ ...basicInfo, state: e.target.value })
-              }
+              id="companyName"
+              value={basicInfo.companyName}
+              onChange={(e) => {
+                setBasicInfo({ ...basicInfo, companyName: e.target.value})
+              }}
             />
           </div>
           <div className="flex flex-col gap-2 col-span-1 md:col-span-2">
@@ -404,16 +399,6 @@ const ContractorProfile = () => {
               onChange={(e) =>
                 setBasicInfo({ ...basicInfo, specialties: e.target.value })
               }
-            />
-          </div>
-          <div className="flex flex-col gap-2 col-span-1 md:col-span-2">
-            <label htmlFor="companyName">Company Name</label>
-            <Input
-              id="companyName"
-              value={basicInfo.companyName}
-              onChange={(e) => {
-                setBasicInfo({ ...basicInfo, companyName: e.target.value})
-              }}
             />
           </div>
           <div className="flex flex-col gap-2 col-span-1 md:col-span-2">
@@ -441,6 +426,9 @@ const ContractorProfile = () => {
             />
           </div>
         </div>
+        <div className="col-span-1 md:col-span-2 h-px bg-neutral-200 my-5" />
+        <h6 className="font-medium mb-3">Service Area</h6>
+        <MyMap value={serviceArea} onChange={setServiceArea} />
         <div className="flex justify-end mt-4">
           <Button variant="primary" size="sm" onClick={handleSaveBasicInfo}>
             Save Changes

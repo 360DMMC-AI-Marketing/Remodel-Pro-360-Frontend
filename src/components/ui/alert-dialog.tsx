@@ -7,6 +7,7 @@ interface AlertDialogProps {
   open: boolean;
   title: string;
   description: string;
+  warningText?: string;
   confirmLabel?: string;
   cancelLabel?: string;
   isLoading?: boolean;
@@ -18,6 +19,7 @@ export const AlertDialog = ({
   open,
   title,
   description,
+  warningText = "This action cannot be undone.",
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   isLoading = false,
@@ -86,7 +88,7 @@ export const AlertDialog = ({
 
         <div className="px-6 pb-6 pt-4">
           <div className="rounded-2xl border border-error/15 bg-error/5 p-4 text-sm text-neutral-700">
-            This action removes your current profile picture immediately and cannot be undone.
+            {warningText}
           </div>
 
           <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

@@ -1,15 +1,35 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import type { HomeownerProject } from "@/types/project";
-import { getProjectById, updateProjectStatus } from "@/api/porject";
+import { deleteProject, getProjectById, updateProject, updateProjectStatus } from "@/api/porject";
 import { bidService, type HomeownerBid } from "@/api/bid";
-import { ArrowLeft, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Edit3, MoreHorizontal, Save, Trash2, Upload, X } from "lucide-react";
 import { Button } from "@/components/atoms/Button";
 import { Badge } from "@/components/atoms/Badge";
 import { Skeleton } from "@/components/atoms/Skeleton";
 import { Textarea } from "@/components/atoms/Textarea";
 import { toast } from "sonner";
+import { Input } from "@/components/atoms/Input";
+import { AlertDialog } from "@/components/ui/alert-dialog";
+
+interface EditProjectForm {
+  title: string;
+  roomType: string;
+  description: string;
+  address: {
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+  };
+  budgetRange?: {
+    min: number;
+    max: number;
+  };
+  customBudget?: number;
+  startDate?: string;
+}
 
 const BASE_IMAGE_URL = "https://rp360-uploads.s3.us-east-1.amazonaws.com/";
 
@@ -25,6 +45,29 @@ const Project = () => {
   const [actingBidId, setActingBidId] = useState<string | null>(null);
   const [rejectDialogBidId, setRejectDialogBidId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isDeletingProject, setIsDeletingProject] = useState(false);
+  const [isDeleteProjectDialogOpen, setIsDeleteProjectDialogOpen] = useState(false);
+  const [newImages, setNewImages] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [removedImageUrls, setRemovedImageUrls] = useState<string[]>([]);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const actionsMenuRef = useRef<HTMLDivElement | null>(null);
+  const [editForm, setEditForm] = useState<EditProjectForm>({
+    title: "",
+    roomType: "",
+    description: "",
+    address: {
+      street: "",
+      city: "",
+      state: "",
+      zipCode: "",
+    },
+    budgetRange: undefined,
+    customBudget: undefined,
+    startDate: undefined,
+  });
 
   const images = project?.images ?? [];
   const isRejectDialogOpen = Boolean(rejectDialogBidId);
@@ -109,6 +152,33 @@ const Project = () => {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [activeImageIndex, images.length]);
+
+  useEffect(() => {
+    if (!actionsOpen) return;
+
+    const handleOutsideClick = (event: MouseEvent | TouchEvent) => {
+      const targetNode = event.target as Node;
+      if (!actionsMenuRef.current?.contains(targetNode)) {
+        setActionsOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setActionsOpen(false);
+      }
+    };
+
+    window.addEventListener("mousedown", handleOutsideClick);
+    window.addEventListener("touchstart", handleOutsideClick);
+    window.addEventListener("keydown", handleEscape);
+
+    return () => {
+      window.removeEventListener("mousedown", handleOutsideClick);
+      window.removeEventListener("touchstart", handleOutsideClick);
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [actionsOpen]);
 
   const goToPreviousImage = () => {
     if (images.length === 0) return;
@@ -196,8 +266,148 @@ const Project = () => {
     setRejectReason("");
   };
 
+  const startEditing = () => {
+    if (!project) return;
+
+    setEditForm({
+      title: project.title,
+      roomType: project.roomType,
+      description: project.description || "",
+      address: {
+        street: project.address?.street || "",
+        city: project.address?.city || "",
+        state: project.address?.state || "",
+        zipCode: project.address?.zipCode || "",
+      },
+      budgetRange: project.budgetRange,
+      customBudget:
+        typeof project.customBudget === "number" && project.customBudget > 0
+          ? project.customBudget
+          : undefined,
+      startDate: project.startDate ? new Date(project.startDate).toISOString().split("T")[0] : undefined,
+    });
+    setNewImages([]);
+    setImagePreviews([]);
+    setRemovedImageUrls([]);
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => {
+    imagePreviews.forEach((preview) => URL.revokeObjectURL(preview));
+    setNewImages([]);
+    setImagePreviews([]);
+    setRemovedImageUrls([]);
+    setIsEditing(false);
+  };
+
+  const onNewImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+
+    const nextPreviews = files.map((file) => URL.createObjectURL(file));
+    setNewImages((prev) => [...prev, ...files]);
+    setImagePreviews((prev) => [...prev, ...nextPreviews]);
+    event.target.value = "";
+  };
+
+  const removeNewImage = (index: number) => {
+    setNewImages((prev) => prev.filter((_, fileIndex) => fileIndex !== index));
+    setImagePreviews((prev) => {
+      const previewToRemove = prev[index];
+      if (previewToRemove) {
+        URL.revokeObjectURL(previewToRemove);
+      }
+      return prev.filter((_, previewIndex) => previewIndex !== index);
+    });
+  };
+
+  const removeExistingImage = (url: string) => {
+    setRemovedImageUrls((prev) => [...new Set([...prev, url])]);
+  };
+
+  const undoRemoveExistingImage = (url: string) => {
+    setRemovedImageUrls((prev) => prev.filter((item) => item !== url));
+  };
+
+  const handleSaveEdit = async () => {
+    if (!id || !project) return;
+
+    if (editForm.title.trim().length < 3) {
+      toast.error("Title must have at least 3 characters.");
+      return;
+    }
+
+    if (editForm.description.trim().length < 10) {
+      toast.error("Description must have at least 10 characters.");
+      return;
+    }
+
+    try {
+      setIsSavingEdit(true);
+      const response = await updateProject(
+        id,
+        {
+          title: editForm.title,
+          roomType: editForm.roomType,
+          description: editForm.description,
+          address: editForm.address,
+          budgetRange: editForm.budgetRange,
+          customBudget:
+            typeof editForm.customBudget === "number" && editForm.customBudget > 0
+              ? editForm.customBudget
+              : undefined,
+          startDate: editForm.startDate ? new Date(editForm.startDate) : undefined,
+          images: [],
+          attachedDesignId: null,
+        },
+        {
+          newImages,
+          removeImageUrls: removedImageUrls,
+        },
+      );
+
+      setProject(response.project);
+      toast.success("Project updated successfully.");
+      cancelEditing();
+    } catch (error) {
+      console.error("Failed to update project:", error);
+      toast.error("Failed to update project.");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!id) return;
+
+    try {
+      setIsDeletingProject(true);
+      await deleteProject(id);
+      toast.success("Project deleted.");
+      setIsDeleteProjectDialogOpen(false);
+      navigate("/homeowner/projects");
+    } catch (error) {
+      console.error("Failed to delete project:", error);
+      toast.error("Failed to delete project.");
+    } finally {
+      setIsDeletingProject(false);
+    }
+  };
+
   return (
     <div>
+      <AlertDialog
+        open={isDeleteProjectDialogOpen}
+        title="Delete project?"
+        description="Deleting this project will remove its details, images, and related context from your dashboard."
+        warningText="This action is permanent and cannot be undone."
+        confirmLabel="Delete project"
+        cancelLabel="Keep project"
+        isLoading={isDeletingProject}
+        onConfirm={handleDeleteProject}
+        onClose={() => setIsDeleteProjectDialogOpen(false)}
+      />
+
       <Link to="/homeowner/projects">
         <Button variant="ghost" size="sm" className="flex items-center gap-2">
           <ArrowLeft />
@@ -217,32 +427,98 @@ const Project = () => {
           <>
             <div>
               <span className="flex items-center space-x-4">
-                <h4>Master Bathroom Renovation</h4>
+                <h4>{project?.title}</h4>
                 <Badge variant="primary">{project?.status}</Badge>
               </span>
-              <p className="text-neutral-500">{project?.title}</p>
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant={project?.status === "draft" ? "primary" : "outline"}
-                size="sm"
-                disabled={isUpdatingStatus || project?.status === "draft"}
-                onClick={() => void handleStatusUpdate("draft")}
+            <div className="relative" ref={actionsMenuRef}>
+              <button
+                onClick={() => setActionsOpen((prev) => !prev)}
+                className="p-2 rounded-full cursor-pointer hover:bg-secondary-100 group"
+                aria-label="Open project actions"
               >
-                {isUpdatingStatus && project?.status !== "draft"
-                  ? "Updating..."
-                  : "Move to Draft"}
-              </Button>
-              <Button
-                variant={project?.status === "bidding" ? "primary" : "outline"}
-                size="sm"
-                disabled={isUpdatingStatus || project?.status === "bidding"}
-                onClick={() => void handleStatusUpdate("bidding")}
-              >
-                {isUpdatingStatus && project?.status !== "bidding"
-                  ? "Updating..."
-                  : "Move to Bidding"}
-              </Button>
+                <MoreHorizontal className="size-5 group-hover:text-secondary-600" />
+              </button>
+
+              {actionsOpen && (
+                <div className="absolute right-0 z-20 mt-2 w-52 rounded-lg border border-neutral-200 bg-white p-2 shadow-lg">
+                  {!isEditing ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        startEditing();
+                        setActionsOpen(false);
+                      }}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-100"
+                    >
+                      <Edit3 className="size-4" />
+                      Edit Project
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          cancelEditing();
+                          setActionsOpen(false);
+                        }}
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-100"
+                      >
+                        <X className="size-4" />
+                        Cancel Edit
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isSavingEdit}
+                        onClick={() => {
+                          void handleSaveEdit();
+                          setActionsOpen(false);
+                        }}
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-100 disabled:opacity-50"
+                      >
+                        <Save className="size-4" />
+                        {isSavingEdit ? "Saving..." : "Save Changes"}
+                      </button>
+                    </>
+                  )}
+
+                  <button
+                    type="button"
+                    disabled={isUpdatingStatus || project?.status === "draft"}
+                    onClick={() => {
+                      void handleStatusUpdate("draft");
+                      setActionsOpen(false);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-100 disabled:opacity-50"
+                  >
+                    Move to Draft
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isUpdatingStatus || project?.status === "bidding"}
+                    onClick={() => {
+                      void handleStatusUpdate("bidding");
+                      setActionsOpen(false);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-100 disabled:opacity-50"
+                  >
+                    Move to Bidding
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsDeleteProjectDialogOpen(true);
+                      setActionsOpen(false);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                  >
+                    <Trash2 className="size-4" />
+                    Delete Project
+                  </button>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -250,6 +526,38 @@ const Project = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="col-span-1 md:col-span-2 bg-white rounded-xl p-5 border border-neutral-200">
             <h6 className="mb-3 text-neutral-800">Images & Linked Designs</h6>
+            {isEditing && (
+              <div className="mb-4 space-y-3">
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-700">
+                  <Upload className="size-4" />
+                  Add Images
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={onNewImageChange}
+                  />
+                </label>
+
+                {imagePreviews.length > 0 && (
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                    {imagePreviews.map((preview, index) => (
+                      <div key={preview} className="relative overflow-hidden rounded-lg border border-neutral-200">
+                        <img src={preview} alt="New upload" className="h-28 w-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => removeNewImage(index)}
+                          className="absolute right-1 top-1 rounded-full bg-white/90 p-1"
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             {loading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[1, 2, 3, 4].map((i) => (
@@ -258,15 +566,34 @@ const Project = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {images.map((img, index) => (
-                      <img
-                        key={index}
-                        src={`${BASE_IMAGE_URL}${img.url}`}
-                        alt={`Project Image ${index + 1}`}
-                        className="w-full h-48 object-cover rounded-lg cursor-pointer"
-                        onClick={() => setActiveImageIndex(index)}
-                      />
-                  ))}
+                  {images.map((img, index) => {
+                    const markedForRemoval = removedImageUrls.includes(img.url);
+                    return (
+                      <div key={img.url + index} className="relative">
+                        <img
+                          src={`${BASE_IMAGE_URL}${img.url}`}
+                          alt={`Project Image ${index + 1}`}
+                          className={`w-full h-48 object-cover rounded-lg cursor-pointer ${
+                            markedForRemoval ? "opacity-40" : ""
+                          }`}
+                          onClick={() => setActiveImageIndex(index)}
+                        />
+                        {isEditing && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              markedForRemoval
+                                ? undoRemoveExistingImage(img.url)
+                                : removeExistingImage(img.url)
+                            }
+                            className="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-1 text-xs"
+                          >
+                            {markedForRemoval ? "Undo" : "Remove"}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
               </div>
             )}
         </div>
@@ -281,6 +608,146 @@ const Project = () => {
                 <Skeleton variant="text" className="w-40 h-5" />
                 <Skeleton variant="text" className="w-32 h-4 mt-5" />
                 <Skeleton variant="text" className="w-full h-5" />
+              </div>
+            ) : isEditing ? (
+              <div className="space-y-4">
+                <div>
+                  <label>Title</label>
+                  <Input
+                    value={editForm.title}
+                    onChange={(event) =>
+                      setEditForm((prev) => ({ ...prev, title: event.target.value }))
+                    }
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label>Room Type</label>
+                  <Input
+                    value={editForm.roomType}
+                    onChange={(event) =>
+                      setEditForm((prev) => ({ ...prev, roomType: event.target.value }))
+                    }
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label>Description</label>
+                  <Textarea
+                    value={editForm.description}
+                    onChange={(event) =>
+                      setEditForm((prev) => ({ ...prev, description: event.target.value }))
+                    }
+                    rows={4}
+                    className="mt-1"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    placeholder="Street"
+                    value={editForm.address.street}
+                    onChange={(event) =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        address: { ...prev.address, street: event.target.value },
+                      }))
+                    }
+                  />
+                  <Input
+                    placeholder="City"
+                    value={editForm.address.city}
+                    onChange={(event) =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        address: { ...prev.address, city: event.target.value },
+                      }))
+                    }
+                  />
+                  <Input
+                    placeholder="State"
+                    value={editForm.address.state}
+                    onChange={(event) =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        address: { ...prev.address, state: event.target.value },
+                      }))
+                    }
+                  />
+                  <Input
+                    placeholder="Zip Code"
+                    value={editForm.address.zipCode}
+                    onChange={(event) =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        address: { ...prev.address, zipCode: event.target.value },
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label>Budget Range</label>
+                  <div className="mt-1 grid grid-cols-2 gap-2">
+                    <Input
+                      type="number"
+                      placeholder="Min"
+                      value={editForm.budgetRange?.min ?? ""}
+                      onChange={(event) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          customBudget: undefined,
+                          budgetRange: {
+                            min: event.target.value ? Number(event.target.value) : 0,
+                            max: prev.budgetRange?.max ?? 0,
+                          },
+                        }))
+                      }
+                    />
+                    <Input
+                      type="number"
+                      placeholder="Max"
+                      value={editForm.budgetRange?.max ?? ""}
+                      onChange={(event) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          customBudget: undefined,
+                          budgetRange: {
+                            min: prev.budgetRange?.min ?? 0,
+                            max: event.target.value ? Number(event.target.value) : 0,
+                          },
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label>Custom Budget</label>
+                  <Input
+                    type="number"
+                    value={editForm.customBudget || ""}
+                    onChange={(event) =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        customBudget: event.target.value ? Number(event.target.value) : undefined,
+                        budgetRange: undefined,
+                      }))
+                    }
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label>Start Date</label>
+                  <Input
+                    type="date"
+                    value={editForm.startDate || ""}
+                    onChange={(event) =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        startDate: event.target.value || undefined,
+                      }))
+                    }
+                    className="mt-1"
+                  />
+                </div>
               </div>
             ) : (
               <>

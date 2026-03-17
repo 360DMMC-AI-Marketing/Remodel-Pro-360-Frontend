@@ -8,6 +8,7 @@ import type { UserResponse } from "@/types/api";
 interface AuthState {
   user: User | null;
   token: string | null;
+  refreshToken: string | null;
   role: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -36,6 +37,7 @@ interface AuthState {
       bio?: string;
       experienceYears?: number;
       specialties?: string[];
+      serviceArea?: { type: "Polygon"; coordinates: number[][][] } | null;
     };
   }) => Promise<void>;
   uploadPaperwork: (licenses?: File[], insurances?: File[]) => Promise<void>;
@@ -48,6 +50,7 @@ export const useAuth = create<AuthState>()(
     (set) => ({
       user: null,
       token: null,
+      refreshToken: null,
       role: null,
       isAuthenticated: false,
       isLoading: false,
@@ -60,6 +63,7 @@ export const useAuth = create<AuthState>()(
           set({
             user: response.user,
             token: response.tokens.accessToken,
+            refreshToken: response.tokens.refreshToken,
             role: response.user.role,
             isAuthenticated: true,
             isLoading: false,
@@ -91,6 +95,7 @@ export const useAuth = create<AuthState>()(
           set({
             user: response.user,
             token: response.tokens.accessToken,
+            refreshToken: response.tokens.refreshToken,
             role: response.user.role,
             isAuthenticated: true,
             isLoading: false,
@@ -218,7 +223,13 @@ export const useAuth = create<AuthState>()(
       },
 
       logout: () => {
-        set({ user: null, token: null, role: null, isAuthenticated: false });
+        set({
+          user: null,
+          token: null,
+          refreshToken: null,
+          role: null,
+          isAuthenticated: false,
+        });
         localStorage.removeItem("auth-storage"); // clear localStorage
       },
 
@@ -229,6 +240,7 @@ export const useAuth = create<AuthState>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         token: state.token,
+        refreshToken: state.refreshToken,
         user: state.user,
         isAuthenticated: state.isAuthenticated,
         role: state.role,

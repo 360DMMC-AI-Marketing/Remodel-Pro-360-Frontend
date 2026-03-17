@@ -5,6 +5,10 @@ const addressSchema = z.object({
 	city: z.string().min(1, "City is required"),
 	state: z.string().min(1, "State is required"),
 	zipCode: z.string().min(1, "Zip code is required"),
+	coordinates: z.object({
+		type: z.literal("Point"),
+		coordinates: z.tuple([z.number(), z.number()]),
+	}).optional(),
 }).optional();
 
 const budgetRangeSchema = z.object({

@@ -28,12 +28,22 @@ interface UpdateProfilePayload {
     bio?: string;
     experienceYears?: number;
     specialties?: string[];
+    serviceArea?: { type: "Polygon"; coordinates: number[][][] } | null;
   };
 }
 
 interface UpdateProfileResponse {
   message: string;
   user: User;
+}
+
+interface RefreshTokenResponse {
+  message: string;
+  tokens: {
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: string;
+  };
 }
 
 export const authService = {
@@ -45,6 +55,11 @@ export const authService = {
   login: async (data: LoginFormValues) => {
     const response = await api.post('/auth/login', data);
     return response.data;
+  },
+
+  refreshToken: async (refreshToken: string): Promise<RefreshTokenResponse> => {
+    const response = await api.post('/auth/refresh', { refreshToken });
+    return response.data as RefreshTokenResponse;
   },
   
   verifyEmail: async (token: string) => {
@@ -117,7 +132,7 @@ export const authService = {
   getContractors: async () => {
     const response = await api.get('/auth/contractors');
     return response.data.contractors as User[];
-  }
+  },
 
   // resendVerificationEmail: async () => {
   //   const response = await api.post('/auth/resend-verification-email');

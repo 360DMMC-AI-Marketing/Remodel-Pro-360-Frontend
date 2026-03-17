@@ -157,7 +157,8 @@ const NotificationBell = () => {
           return `/contractor/projects/${projectId}`;
         }
       } catch {
-        return "/contractor/projects";
+        // PROJECT_UPDATE may carry either a bid id or a project id.
+        return `/contractor/projects/${notification.relatedId}`;
       }
 
       return "/contractor/projects";
