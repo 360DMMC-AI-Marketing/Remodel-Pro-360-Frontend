@@ -36,6 +36,7 @@ export interface BidRecord {
     | "rejected"
     | "withdrawn";
   message?: string;
+  reply?: string;
   estimatedStartDate?: string;
   estimatedDurationDays?: number;
   createdAt?: string;
@@ -91,6 +92,11 @@ export const bidService = {
 
   acceptBid: async (bidId: string) => {
     const response = await api.patch(`/bids/${bidId}/accept`);
+    return response.data.data as HomeownerBid;
+  },
+
+  shortlistBid: async (bidId: string) => {
+    const response = await api.patch(`/bids/${bidId}/shortlist`);
     return response.data.data as HomeownerBid;
   },
 

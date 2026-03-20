@@ -23,6 +23,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import ContractorVetting from "./pages/admin/ContractorVetting";
 import ContractorProjects from "./pages/contractor/ContractorProjects";
 import ContractorProjectDetails from "./pages/contractor/ContractorProjectDetails";
+import MessagesPage from "./pages/messages/MessagesPage";
 
 interface ProtectedRoutesProps {
   allowedRole?: "homeowner" | "contractor" | "admin";
@@ -47,6 +48,20 @@ const AuthRoutes = () => {
   return <Outlet />;
 };
 
+const MessagesRouteResolver = () => {
+  const { role } = useAuth();
+
+  if (role === "homeowner") {
+    return <Navigate to="/homeowner/messages" replace />;
+  }
+
+  if (role === "contractor") {
+    return <Navigate to="/contractor/messages" replace />;
+  }
+
+  return <Navigate to="/" replace />;
+};
+
 function App() {
   return (
     <>
@@ -68,12 +83,17 @@ function App() {
         </Route>
         <Route path="/register" element={<Register />} />
 
+        <Route element={<ProtectedRoutes />}>
+          <Route path="/messages" element={<MessagesRouteResolver />} />
+        </Route>
+
         <Route element={<ProtectedRoutes allowedRole="homeowner" />}>
           <Route path="/homeowner" element={<HomeownerLayout />}>
             <Route path="/homeowner/dashboard" element={<HomeownerDashboard />} />
             <Route path="/homeowner/projects" element={<Projects />} />
             <Route path="/homeowner/projects/new" element={<NewProject />} />
             <Route path="/homeowner/projects/:id" element={<Project />} />
+            <Route path="/homeowner/messages" element={<MessagesPage />} />
           </Route>
         </Route>
         <Route element={<ProtectedRoutes allowedRole="contractor" />}>
@@ -81,6 +101,7 @@ function App() {
             <Route path="/contractor/dashboard" element={<ContractorDashboard />} />
             <Route path="/contractor/profile" element={<ContractorProfile />} />
             <Route path="/contractor/projects" element={<ContractorProjects />} />
+            <Route path="/contractor/messages" element={<MessagesPage />} />
             <Route
               path="/contractor/projects/:id"
               element={<ContractorProjectDetails />}

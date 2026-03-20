@@ -173,7 +173,7 @@ const NewProject = () => {
   };
 
   return (
-    <div>
+    <div className="p-6">
       <Link to="/homeowner/projects">
         <Button variant="ghost" size="sm" className="flex items-center gap-2">
           <ArrowLeft size={20} /> Back to Projects

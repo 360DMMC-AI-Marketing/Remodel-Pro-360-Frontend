@@ -4,6 +4,7 @@ import { Textarea } from "@/components/atoms/Textarea";
 import { Card } from "@/components/molecules/Card";
 import { useRef, useState, useEffect } from "react";
 import type { DragEvent, ChangeEvent } from "react";
+import { useLocation } from "react-router-dom";
 import {
   Shield,
   Upload,
@@ -12,12 +13,16 @@ import {
   AlertCircle,
   CheckCircle,
   BadgeCheck,
+  CreditCard,
+  ExternalLink,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AlertDialog } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/stores/useAuth";
 import { contractorService } from "@/api/contractor";
 import type { VettingRequestData } from "@/api/contractor";
+import { connectService, type ContractorConnectStatus } from "@/api/connect";
 import MyMap from "@/components/ui/MyMap";
 
 interface UploadedDoc {
@@ -42,7 +47,16 @@ const formatSize = (bytes: number) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
+const formatRequirement = (value: string) =>
+  value
+    .split(".")
+    .join(" ")
+    .split("_")
+    .join(" ")
+    .trim();
+
 const ContractorProfile = () => {
+  const location = useLocation();
   const [basicInfo, setBasicInfo] = useState({
     firstName: "",
     lastName: "",
@@ -81,6 +95,47 @@ const ContractorProfile = () => {
   const [isRemovingAvatar, setIsRemovingAvatar] = useState(false);
   const [isDeleteAvatarDialogOpen, setIsDeleteAvatarDialogOpen] =
     useState(false);
+  const [connectStatus, setConnectStatus] =
+    useState<ContractorConnectStatus | null>(null);
+  const [isLoadingConnectStatus, setIsLoadingConnectStatus] = useState(true);
+  const [isLaunchingOnboarding, setIsLaunchingOnboarding] = useState(false);
+  const [isOpeningConnectDashboard, setIsOpeningConnectDashboard] =
+    useState(false);
+
+  const loadConnectStatus = async () => {
+    try {
+      setIsLoadingConnectStatus(true);
+      const status = await connectService.getMyStatus();
+      setConnectStatus(status);
+    } catch {
+      toast.error("Failed to load Stripe payout onboarding status.");
+    } finally {
+      setIsLoadingConnectStatus(false);
+    }
+  };
+
+  const handleStartStripeOnboarding = async () => {
+    try {
+      setIsLaunchingOnboarding(true);
+      const data = await connectService.createOnboardingLink();
+      window.location.assign(data.url);
+    } catch {
+      toast.error("Failed to start Stripe onboarding.");
+      setIsLaunchingOnboarding(false);
+    }
+  };
+
+  const handleOpenStripeDashboard = async () => {
+    try {
+      setIsOpeningConnectDashboard(true);
+      const data = await connectService.createDashboardLink();
+      window.location.assign(data.url);
+    } catch {
+      toast.error("Could not open Stripe Express dashboard.");
+    } finally {
+      setIsOpeningConnectDashboard(false);
+    }
+  };
   const processVettingFiles = (files: FileList | null) => {
     if (!files) return;
     const docs: UploadedDoc[] = Array.from(files).map((f) => ({
@@ -116,6 +171,26 @@ const ContractorProfile = () => {
   };
 
   const { user, updateAvatar, removeAvatar, updateProfile } = useAuth();
+
+  useEffect(() => {
+    void loadConnectStatus();
+  }, []);
+
+  useEffect(() => {
+    const stripeParam = new URLSearchParams(location.search).get("stripe");
+    if (!stripeParam) return;
+
+    if (stripeParam === "return") {
+      toast.success("Stripe onboarding updated. Refreshing status...");
+      void loadConnectStatus();
+      return;
+    }
+
+    if (stripeParam === "refresh") {
+      toast.error("Stripe onboarding expired. Please continue setup.");
+      void loadConnectStatus();
+    }
+  }, [location.search]);
 
   useEffect(() => {
     if (!user) return;
@@ -435,6 +510,127 @@ const ContractorProfile = () => {
           </Button>
         </div>
       </Card>
+
+      <Card className="mt-10 max-w-2xl mx-auto">
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <h6 className="font-medium mb-2 flex items-center gap-2">
+              <CreditCard className="text-primary-500" />
+              Stripe Payout Onboarding
+            </h6>
+            <p className="text-sm text-muted-foreground">
+              Complete Stripe Express onboarding for KYC verification and payout
+              routing to your bank account.
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="shrink-0"
+            disabled={isLoadingConnectStatus}
+            onClick={() => void loadConnectStatus()}
+          >
+            <RefreshCw className="size-4" />
+            Refresh
+          </Button>
+        </div>
+
+        {isLoadingConnectStatus ? (
+          <p className="text-sm text-muted-foreground">Loading Stripe status...</p>
+        ) : connectStatus?.onboardingComplete ? (
+          <div className="space-y-4">
+            <div className="flex items-start gap-3 rounded-xl border border-green-200 bg-green-50 p-4 text-green-800">
+              <CheckCircle className="h-5 w-5 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-sm">Payouts Enabled</p>
+                <p className="text-sm mt-1">
+                  Your Stripe account is ready. KYC is completed and payout routing
+                  is active.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
+              <div className="rounded-lg border border-neutral-200 p-3">
+                <p className="text-neutral-500">Details Submitted</p>
+                <p className="font-semibold text-neutral-800">
+                  {connectStatus.detailsSubmitted ? "Yes" : "No"}
+                </p>
+              </div>
+              <div className="rounded-lg border border-neutral-200 p-3">
+                <p className="text-neutral-500">Charges Enabled</p>
+                <p className="font-semibold text-neutral-800">
+                  {connectStatus.chargesEnabled ? "Yes" : "No"}
+                </p>
+              </div>
+              <div className="rounded-lg border border-neutral-200 p-3">
+                <p className="text-neutral-500">Payouts Enabled</p>
+                <p className="font-semibold text-neutral-800">
+                  {connectStatus.payoutsEnabled ? "Yes" : "No"}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={isOpeningConnectDashboard}
+                onClick={() => void handleOpenStripeDashboard()}
+              >
+                <ExternalLink className="size-4" />
+                {isOpeningConnectDashboard
+                  ? "Opening..."
+                  : "Open Stripe Dashboard"}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+              <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-sm">Onboarding Incomplete</p>
+                <p className="text-sm mt-1">
+                  You must finish Stripe onboarding before receiving payouts.
+                </p>
+              </div>
+            </div>
+
+            {connectStatus?.requirements.currentlyDue.length ? (
+              <div className="rounded-lg border border-neutral-200 p-3">
+                <p className="text-sm font-medium text-neutral-800 mb-2">
+                  Information still required by Stripe
+                </p>
+                <ul className="space-y-1 text-sm text-neutral-600">
+                  {connectStatus.requirements.currentlyDue.map((item) => (
+                    <li key={item}>• {formatRequirement(item)}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                size="sm"
+                variant="primary"
+                disabled={isLaunchingOnboarding}
+                onClick={() => void handleStartStripeOnboarding()}
+              >
+                {isLaunchingOnboarding
+                  ? "Redirecting..."
+                  : connectStatus?.accountId
+                    ? "Continue Stripe Onboarding"
+                    : "Start Stripe Onboarding"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Card>
+
       <Card className="mt-10 max-w-2xl mx-auto">
         <div className="mb-6">
           <h6 className="font-medium mb-3 flex items-center gap-2">

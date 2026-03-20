@@ -12,7 +12,7 @@ import { useAuth } from "@/stores/useAuth";
 const HomeownerDashboard = () => {
     const { user } = useAuth();
   return (
-    <>
+    <div className="p-6">
         <div className="mb-10 text-center md:text-left">
           <h4>Welcome back, {user?.firstName || "Dear User"}!</h4>
           <p className="text-neutral-500">
@@ -123,7 +123,7 @@ const HomeownerDashboard = () => {
             </Card>
           </div>
         </div>
-    </>
+    </div>
   );
 };
 

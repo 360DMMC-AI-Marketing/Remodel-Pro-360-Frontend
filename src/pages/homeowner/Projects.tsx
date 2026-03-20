@@ -45,7 +45,7 @@ const Projects = () => {
   }, [searchTerm, statusFilter]);
 
   return (
-    <>
+    <div className="p-6 pt-16">
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-5 md:gap-0">
         <div className="space-y-2 text-center md:text-left">
           <h4>My Projects</h4>
@@ -213,7 +213,7 @@ const Projects = () => {
             );
           })}
       </div>
-    </>
+    </div>
   );
 };
 

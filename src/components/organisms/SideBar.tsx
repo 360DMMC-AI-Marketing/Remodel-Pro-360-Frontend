@@ -23,7 +23,7 @@ const homeownerLinks = [
   { to: "/", label: "Design Studio", icon: Palette },
   { to: "/homeowner/projects", label: "Projects", icon: FolderOpen },
   { to: "/", label: "Find Contractors", icon: Search },
-  { to: "/", label: "Messages", icon: MessageSquare },
+  { to: "/homeowner/messages", label: "Messages", icon: MessageSquare },
   { to: "/", label: "Payment", icon: CreditCard },
   { to: "/", label: "Settings", icon: Settings },
 ];

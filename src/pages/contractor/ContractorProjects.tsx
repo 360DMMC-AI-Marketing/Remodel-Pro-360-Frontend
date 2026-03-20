@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Eye, X } from "lucide-react";
 import { Badge } from "@/components/atoms/Badge";
@@ -8,6 +8,7 @@ import { Button } from "@/components/atoms/Button";
 import { Input } from "@/components/atoms/Input";
 import { Textarea } from "@/components/atoms/Textarea";
 import { Card } from "@/components/molecules/Card";
+import { getProjectById } from "@/api/porject";
 import {
   bidService,
   type BidRecord,
@@ -21,6 +22,25 @@ interface BidFormState {
   estimatedDurationDays: string;
 }
 
+type ProjectStatusFilter =
+  | "all"
+  | "bidding"
+  | "contracted"
+  | "in_progress"
+  | "completed"
+  | "cancelled"
+  | "disputed";
+
+const PROJECT_STATUS_FILTERS: Array<{ key: ProjectStatusFilter; label: string }> = [
+  { key: "all", label: "All" },
+  { key: "bidding", label: "Bidding" },
+  { key: "contracted", label: "Contracted" },
+  { key: "in_progress", label: "In Progress" },
+  { key: "completed", label: "Completed" },
+  { key: "cancelled", label: "Cancelled" },
+  { key: "disputed", label: "Disputed" },
+];
+
 const initialFormState: BidFormState = {
   amount: "",
   message: "",
@@ -29,6 +49,7 @@ const initialFormState: BidFormState = {
 };
 
 const ContractorProjects = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [projects, setProjects] = useState<ContractorProject[]>([]);
   const [myBids, setMyBids] = useState<BidRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,6 +60,14 @@ const ContractorProjects = () => {
     null,
   );
   const [form, setForm] = useState<BidFormState>(initialFormState);
+  
+  const urlStatus = searchParams.get("status");
+  const isValidStatus = (value: string): value is ProjectStatusFilter => {
+    return ["all", "bidding", "contracted", "in_progress", "completed", "cancelled", "disputed"].includes(value);
+  };
+  const [statusFilter, setStatusFilter] = useState<ProjectStatusFilter>(
+    urlStatus && isValidStatus(urlStatus) ? urlStatus : "all"
+  );
 
   const dialogOpen = Boolean(dialogProject);
 
@@ -54,17 +83,75 @@ const ContractorProjects = () => {
     return map;
   }, [myBids]);
 
+  const filteredProjects = useMemo(() => {
+    if (statusFilter === "all") return projects;
+    return projects.filter((project) => (project.status ?? "bidding") === statusFilter);
+  }, [projects, statusFilter]);
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<ProjectStatusFilter, number> = {
+      all: projects.length,
+      bidding: 0,
+      contracted: 0,
+      in_progress: 0,
+      completed: 0,
+      cancelled: 0,
+      disputed: 0,
+    };
+
+    for (const project of projects) {
+      const status = (project.status ?? "bidding") as ProjectStatusFilter;
+      if (status in counts) {
+        counts[status] += 1;
+      }
+    }
+
+    return counts;
+  }, [projects]);
+
   const loadProjectsData = async () => {
     try {
       setLoading(true);
-      const [projectList, bidList] = await Promise.all([
+      const [biddingProjects, bidList] = await Promise.all([
         bidService.getBiddingProjects(),
         bidService.getMyBids(),
       ]);
-      setProjects(projectList);
+
+      const biddingProjectIds = new Set(biddingProjects.map((project) => project._id));
+      const myBidProjectIds = Array.from(
+        new Set(
+          bidList
+            .map((bid) =>
+              typeof bid.projectId === "string" ? bid.projectId : bid.projectId?._id,
+            )
+            .filter((projectId): projectId is string => Boolean(projectId)),
+        ),
+      );
+
+      const missingProjectIds = myBidProjectIds.filter(
+        (projectId) => !biddingProjectIds.has(projectId),
+      );
+
+      const myBidProjectsResults = await Promise.allSettled(
+        missingProjectIds.map((projectId) => getProjectById(projectId)),
+      );
+
+      const myBidProjects = myBidProjectsResults
+        .filter(
+          (result): result is PromiseFulfilledResult<{ project: ContractorProject }> =>
+            result.status === "fulfilled" && Boolean(result.value?.project?._id),
+        )
+        .map((result) => result.value.project);
+
+      const mergedProjectsMap = new Map<string, ContractorProject>();
+      for (const project of [...biddingProjects, ...myBidProjects]) {
+        mergedProjectsMap.set(project._id, project);
+      }
+
+      setProjects(Array.from(mergedProjectsMap.values()));
       setMyBids(bidList);
     } catch {
-      toast.error("Failed to load bidding projects.");
+      toast.error("Failed to load projects.");
     } finally {
       setLoading(false);
     }
@@ -73,6 +160,14 @@ const ContractorProjects = () => {
   useEffect(() => {
     void loadProjectsData();
   }, []);
+
+  useEffect(() => {
+    if (statusFilter !== "all") {
+      setSearchParams({ status: statusFilter });
+    } else {
+      setSearchParams({});
+    }
+  }, [statusFilter, setSearchParams]);
 
   useEffect(() => {
     if (!dialogOpen) return;
@@ -146,11 +241,30 @@ const ContractorProjects = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h3>Available Projects</h3>
+        <h3>Projects</h3>
         <p className="text-neutral-500">
-          Browse open projects and submit your bids.
+          Browse open projects and track your accepted and contracted projects.
         </p>
       </div>
+
+      {!loading && (
+        <div className="flex flex-wrap gap-2">
+          {PROJECT_STATUS_FILTERS.map((filter) => {
+            const active = statusFilter === filter.key;
+            return (
+              <Button
+                key={filter.key}
+                variant={active ? "primary" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter(filter.key)}
+                
+              >
+                {filter.label} ({statusCounts[filter.key]})
+              </Button>
+            );
+          })}
+        </div>
+      )}
 
       {loading && (
         <Card>
@@ -158,17 +272,18 @@ const ContractorProjects = () => {
         </Card>
       )}
 
-      {!loading && projects.length === 0 && (
+      {!loading && filteredProjects.length === 0 && (
         <Card>
           <p className="text-neutral-700">
-            There are no projects open for bidding right now.
+            No projects found for this status.
           </p>
         </Card>
       )}
 
       {!loading &&
-        projects.map((project) => {
+        filteredProjects.map((project) => {
           const existingBid = myBidsByProject.get(project._id);
+          const canSubmitBid = (project.status ?? "") === "bidding" && !existingBid;
 
           return (
             <Card key={project._id} className="space-y-4">
@@ -216,16 +331,18 @@ const ContractorProjects = () => {
                         <Eye className="mr-1 size-4" /> Details
                       </Button>
                     </Link>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => {
-                        setDialogProject(project);
-                        setForm(initialFormState);
-                      }}
-                    >
-                      Submit Bid
-                    </Button>
+                    {canSubmitBid && (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => {
+                          setDialogProject(project);
+                          setForm(initialFormState);
+                        }}
+                      >
+                        Submit Bid
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>

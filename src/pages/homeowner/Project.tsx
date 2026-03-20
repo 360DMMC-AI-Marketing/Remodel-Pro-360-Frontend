@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import type { HomeownerProject } from "@/types/project";
 import { deleteProject, getProjectById, updateProject, updateProjectStatus } from "@/api/porject";
 import { bidService, type HomeownerBid } from "@/api/bid";
+import { contractService, type ContractRecord } from "@/api/contract";
 import { ArrowLeft, ChevronLeft, ChevronRight, Edit3, MoreHorizontal, Save, Trash2, Upload, X } from "lucide-react";
 import { Button } from "@/components/atoms/Button";
 import { Badge } from "@/components/atoms/Badge";
@@ -42,6 +43,10 @@ const Project = () => {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [bids, setBids] = useState<HomeownerBid[]>([]);
   const [loadingBids, setLoadingBids] = useState(true);
+  const [projectContract, setProjectContract] = useState<ContractRecord | null>(null);
+  const [loadingContract, setLoadingContract] = useState(true);
+  const [isStartingSignatureFlow, setIsStartingSignatureFlow] = useState(false);
+  const [isSigningContract, setIsSigningContract] = useState(false);
   const [actingBidId, setActingBidId] = useState<string | null>(null);
   const [rejectDialogBidId, setRejectDialogBidId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
@@ -106,13 +111,26 @@ const Project = () => {
     }
   };
 
+  const loadContract = async (projectId: string) => {
+    try {
+      setLoadingContract(true);
+      const contract = await contractService.getProjectContract(projectId);
+      setProjectContract(contract);
+    } catch (error) {
+      console.error("Failed to load contract:", error);
+      setProjectContract(null);
+    } finally {
+      setLoadingContract(false);
+    }
+  };
+
   useEffect(() => {
     const fetchProject = async () => {
         setLoading(true);
       try {
         const data = await getProjectById(id!);
         setProject(data.project);
-        await loadBids(id!);
+        await Promise.all([loadBids(id!), loadContract(id!)]);
         setLoading(false);
       } catch (error) {
         console.error("Failed to load project:", error);
@@ -225,6 +243,9 @@ const Project = () => {
     return fullName || "Contractor";
   };
 
+  const hasPartySigned = (party: "homeowner" | "contractor") =>
+    Boolean(projectContract?.signatures?.some((signature) => signature.party === party));
+
   const handleAcceptBid = async (bidId: string) => {
     if (!id) return;
     try {
@@ -233,12 +254,62 @@ const Project = () => {
       const [projectData] = await Promise.all([
         getProjectById(id),
         loadBids(id),
+        loadContract(id),
       ]);
       setProject(projectData.project);
       toast.success("Bid accepted successfully.");
     } catch (error) {
       console.error("Failed to accept bid:", error);
       toast.error("Failed to accept bid.");
+    } finally {
+      setActingBidId(null);
+    }
+  };
+
+  const handleStartSignatureFlow = async () => {
+    if (!projectContract?._id || !id) return;
+
+    try {
+      setIsStartingSignatureFlow(true);
+      const updated = await contractService.startSignatureFlow(projectContract._id);
+      setProjectContract(updated);
+      toast.success("Signature flow started.");
+      await loadContract(id);
+    } catch (error) {
+      console.error("Failed to start signature flow:", error);
+      toast.error("Failed to start signature flow.");
+    } finally {
+      setIsStartingSignatureFlow(false);
+    }
+  };
+
+  const handleSignContract = async () => {
+    if (!projectContract?._id || !id) return;
+
+    try {
+      setIsSigningContract(true);
+      const updated = await contractService.signContract(projectContract._id);
+      setProjectContract(updated);
+      toast.success("Contract signed successfully.");
+      await loadContract(id);
+    } catch (error) {
+      console.error("Failed to sign contract:", error);
+      toast.error("Failed to sign contract.");
+    } finally {
+      setIsSigningContract(false);
+    }
+  };
+
+  const handleShortlistBid = async (bidId: string) => {
+    if (!id) return;
+    try {
+      setActingBidId(bidId);
+      await bidService.shortlistBid(bidId);
+      await loadBids(id);
+      toast.success("Bid shortlisted.");
+    } catch (error) {
+      console.error("Failed to shortlist bid:", error);
+      toast.error("Failed to shortlist bid.");
     } finally {
       setActingBidId(null);
     }
@@ -395,7 +466,7 @@ const Project = () => {
   };
 
   return (
-    <div>
+    <div className="p-6">
       <AlertDialog
         open={isDeleteProjectDialogOpen}
         title="Delete project?"
@@ -773,6 +844,60 @@ const Project = () => {
       </div>
 
       <div className="mt-6 bg-white rounded-xl p-5 border border-neutral-200">
+        <h6 className="mb-4 text-neutral-800">Contract Signature</h6>
+
+        {loadingContract ? (
+          <Skeleton variant="text" className="w-full h-16" />
+        ) : !projectContract ? (
+          <p className="text-neutral-600">
+            No contract found yet. A contract is created automatically when a bid is accepted.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-neutral-700">
+              Status: <span className="font-semibold capitalize">{projectContract.status.split("_").join(" ")}</span>
+            </p>
+            <p className="text-sm text-neutral-700">
+              Homeowner signed: {hasPartySigned("homeowner") ? "Yes" : "No"}
+            </p>
+            <p className="text-sm text-neutral-700">
+              Contractor signed: {hasPartySigned("contractor") ? "Yes" : "No"}
+            </p>
+            <p className="text-sm text-neutral-700">
+              Start date: {projectContract.startDate ? new Date(projectContract.startDate).toLocaleDateString() : "Not set"}
+            </p>
+            <p className="text-sm text-neutral-700">
+              Estimated end date: {projectContract.estimatedEndDate ? new Date(projectContract.estimatedEndDate).toLocaleDateString() : "Not set"}
+            </p>
+
+            <div className="flex gap-2 pt-2">
+              {projectContract.status === "draft" && (
+                <Button
+                  size="xs"
+                  variant="primary"
+                  disabled={isStartingSignatureFlow}
+                  onClick={() => void handleStartSignatureFlow()}
+                >
+                  {isStartingSignatureFlow ? "Starting..." : "Start Signature"}
+                </Button>
+              )}
+
+              {projectContract.status === "pending_signatures" && !hasPartySigned("homeowner") && (
+                <Button
+                  size="xs"
+                  variant="primary"
+                  disabled={isSigningContract}
+                  onClick={() => void handleSignContract()}
+                >
+                  {isSigningContract ? "Signing..." : "Sign as Homeowner"}
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-6 bg-white rounded-xl p-5 border border-neutral-200">
         <h6 className="mb-4 text-neutral-800">Received Bids</h6>
         {loadingBids ? (
           <div className="space-y-3">
@@ -788,6 +913,7 @@ const Project = () => {
               const isBusy = actingBidId === bid._id;
               const canTakeAction =
                 bid.status === "submitted" || bid.status === "shortlisted";
+              const canShortlist = bid.status === "submitted";
 
               return (
                 <div
@@ -823,12 +949,18 @@ const Project = () => {
                         ? `${bid.estimatedDurationDays} days`
                         : "Not provided"}
                     </p>
+                    {bid.status === "rejected" && bid.reply?.trim() && (
+                      <p>
+                        <span className="font-medium">Rejection reason:</span>{" "}
+                        {bid.reply}
+                      </p>
+                    )}
                   </div>
 
                   {canTakeAction && project?.status === "bidding" && (
                     <div className="mt-4 flex items-center gap-2">
                       <Button
-                        size="sm"
+                        size="xs"
                         variant="primary"
                         disabled={isBusy}
                         onClick={() => void handleAcceptBid(bid._id)}
@@ -836,13 +968,23 @@ const Project = () => {
                         {isBusy ? "Processing..." : "Accept"}
                       </Button>
                       <Button
-                        size="sm"
-                        variant="outline"
+                        size="xs"
+                        variant="danger"
                         disabled={isBusy}
                         onClick={() => openRejectDialog(bid._id)}
                       >
                         Reject
                       </Button>
+                      {canShortlist && (
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          disabled={isBusy}
+                          onClick={() => void handleShortlistBid(bid._id)}
+                        >
+                          {isBusy ? "Processing..." : "Shortlist"}
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>
