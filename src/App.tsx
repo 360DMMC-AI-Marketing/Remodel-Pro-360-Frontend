@@ -25,6 +25,7 @@ import ContractorProjects from "./pages/contractor/ContractorProjects";
 import ContractorProjectDetails from "./pages/contractor/ContractorProjectDetails";
 import MessagesPage from "./pages/messages/MessagesPage";
 import FindContractors from "./pages/homeowner/FindContractors";
+import ContractorDetails from "./pages/homeowner/ContractorDetails";
 
 interface ProtectedRoutesProps {
   allowedRole?: "homeowner" | "contractor" | "admin";
@@ -95,6 +96,7 @@ function App() {
             <Route path="/homeowner/projects/new" element={<NewProject />} />
             <Route path="/homeowner/projects/:id" element={<Project />} />
             <Route path="/homeowner/contractors" element={<FindContractors />} />
+            <Route path="/homeowner/contractors/:id" element={<ContractorDetails />} />
             <Route path="/homeowner/messages" element={<MessagesPage />} />
           </Route>
         </Route>

@@ -99,6 +99,11 @@ const getDateLabel = (date: Date): string => {
   return `${dateStr} · ${formatTime(date.toISOString())}`;
 };
 
+const isEdited = (message: MessageRecord) => {
+  if (!message.updatedAt || !message.createdAt) return false;
+  return new Date(message.updatedAt).getTime() - new Date(message.createdAt).getTime() > 2000;
+};
+
 const TEN_MINUTES = 10 * 60 * 1000;
 
 const shouldShowSeparator = (
@@ -597,7 +602,7 @@ const MessagesPage = () => {
                   key={project._id}
                   type="button"
                   onClick={() => setSelectedProjectId(project._id)}
-                  className={`relative flex w-full items-center gap-3 border-b border-b-neutral-200 p-4 text-left transition-colors ${
+                  className={`relative flex w-full items-center gap-3 border-b border-b-neutral-200 p-4 text-left cursor-pointer transition-colors ${
                     active ? "bg-neutral-100" : "hover:bg-neutral-100"
                   }`}
                 >
@@ -741,6 +746,12 @@ const MessagesPage = () => {
                           </div>
                         ) : null}
 
+                        <div className="flex flex-col gap-0.5">
+                          {isEdited(message) && (
+                            <p className={`text-[10px] ${mine ? "text-right text-neutral-400" : "text-left text-neutral-400"}`}>
+                              edited
+                            </p>
+                          )}
                         <div
                           className={`rounded-2xl px-4 py-3 text-base ${
                             mine
@@ -827,6 +838,7 @@ const MessagesPage = () => {
                           <p className={`mt-1 text-right text-[11px] ${mine ? "text-white/80" : "text-neutral-500"}`}>
                             {mine ? "You" : getSenderDisplayName(message.senderId)} • {formatTime(message.createdAt)} • {getDeliveryLabel(message, mine)}
                           </p>
+                        </div>
                         </div>
                       </div>
                     </div>

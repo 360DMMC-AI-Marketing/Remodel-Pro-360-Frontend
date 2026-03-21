@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Search,
-  MapPin,
   Star,
   Briefcase,
   ChevronLeft,
@@ -313,11 +313,16 @@ const FindContractors = () => {
 // ─── Contractor Card ─────────────────────────────────────────────────────────
 
 const ContractorCard = ({ contractor }: { contractor: ContractorProfile }) => {
+  const navigate = useNavigate();
   const { firstName, lastName, avatar, contractor: info } = contractor;
   const fullName = `${firstName} ${lastName}`;
 
   return (
-    <Card className="p-5 transition-shadow hover:shadow-md" hoverable>
+    <Card
+      className="cursor-pointer p-5 transition-shadow hover:shadow-md"
+      hoverable
+      onClick={() => navigate(`/homeowner/contractors/${contractor._id}`)}
+    >
       <div className="flex items-start gap-4">
         {/* Avatar */}
         {avatar ? (

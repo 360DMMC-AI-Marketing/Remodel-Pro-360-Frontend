@@ -79,7 +79,7 @@ export const contractorsService = {
   },
 
   getContractorById: async (id: string) => {
-    const response = await api.get(`/contractors/${id}`);
+    const response = await api.get(`/auth/contractors/${id}`);
     return response.data.contractor as ContractorProfile;
   },
 };
