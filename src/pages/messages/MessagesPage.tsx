@@ -6,6 +6,11 @@ import {
   MessageSquare,
   EllipsisVertical,
   ChevronLeft,
+  Paperclip,
+  X,
+  FileText,
+  Image as ImageIcon,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/atoms/Input";
@@ -143,6 +148,13 @@ const MessagesPage = () => {
   const [draft, setDraft] = useState("");
   const [openMessageMenuId, setOpenMessageMenuId] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<"above" | "below">("below");
 
   const upsertMessage = (incoming: MessageRecord) => {
     setMessages((current) => {
@@ -377,9 +389,41 @@ const MessagesPage = () => {
     void markIncomingAsRead();
   }, [messages, currentUserId]);
 
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    if (!files.length) return;
+
+    const maxFiles = 5;
+    const maxSize = 10 * 1024 * 1024; // 10MB
+
+    const valid = files.filter((file) => {
+      if (file.size > maxSize) {
+        toast.error(`"${file.name}" exceeds 10 MB limit.`);
+        return false;
+      }
+      return true;
+    });
+
+    setAttachedFiles((current) => {
+      const combined = [...current, ...valid];
+      if (combined.length > maxFiles) {
+        toast.error(`You can attach up to ${maxFiles} files.`);
+        return combined.slice(0, maxFiles);
+      }
+      return combined;
+    });
+
+    // Reset so the same file can be re-selected
+    event.target.value = "";
+  };
+
+  const removeAttachedFile = (index: number) => {
+    setAttachedFiles((current) => current.filter((_, i) => i !== index));
+  };
+
   const handleSend = async () => {
     const content = draft.trim();
-    if (!selectedProjectId || !content) return;
+    if (!selectedProjectId || (!content && attachedFiles.length === 0)) return;
     if (!receiverId) {
       toast.error("Conversation is not available until both parties are assigned.");
       return;
@@ -387,9 +431,15 @@ const MessagesPage = () => {
 
     try {
       setSending(true);
-      const sent = await messageService.sendMessage(selectedProjectId, content, receiverId);
+      const sent = await messageService.sendMessage(
+        selectedProjectId,
+        content,
+        receiverId,
+        attachedFiles.length > 0 ? attachedFiles : undefined,
+      );
       upsertMessage(sent);
       setDraft("");
+      setAttachedFiles([]);
     } catch {
       toast.error("Failed to send message.");
     } finally {
@@ -397,7 +447,7 @@ const MessagesPage = () => {
     }
   };
 
-  const handleEditMessage = (messageId: string) => {
+  const handleStartEdit = (messageId: string) => {
     const target = messages.find((message) => message._id === messageId);
     if (!target) {
       setOpenMessageMenuId(null);
@@ -410,54 +460,56 @@ const MessagesPage = () => {
       return;
     }
 
-    const nextValue = window.prompt("Edit your message", target.content ?? "");
-    if (nextValue === null) {
-      setOpenMessageMenuId(null);
-      return;
-    }
+    setEditingMessageId(messageId);
+    setEditDraft(target.content ?? "");
+    setOpenMessageMenuId(null);
+  };
 
-    const content = nextValue.trim();
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setEditDraft("");
+  };
+
+  const handleConfirmEdit = async () => {
+    if (!editingMessageId) return;
+    const content = editDraft.trim();
     if (!content) {
-      setOpenMessageMenuId(null);
       toast.error("Message content cannot be empty.");
       return;
     }
 
-    void (async () => {
-      try {
-        const updated = await messageService.editMessage(messageId, content);
-        setMessages((current) =>
-          current.map((message) =>
-            message._id === updated._id ? { ...message, ...updated } : message,
-          ),
-        );
-      } catch {
-        toast.error("Failed to edit message.");
-      } finally {
-        setOpenMessageMenuId(null);
-      }
-    })();
+    try {
+      const updated = await messageService.editMessage(editingMessageId, content);
+      setMessages((current) =>
+        current.map((message) =>
+          message._id === updated._id ? { ...message, ...updated } : message,
+        ),
+      );
+    } catch {
+      toast.error("Failed to edit message.");
+    } finally {
+      setEditingMessageId(null);
+      setEditDraft("");
+    }
   };
 
   const handleDeleteMessage = (messageId: string) => {
-    const confirmed = window.confirm("Delete this message?");
-    if (!confirmed) {
-      setOpenMessageMenuId(null);
-      return;
-    }
+    setDeleteConfirmId(messageId);
+    setOpenMessageMenuId(null);
+  };
 
-    void (async () => {
-      try {
-        await messageService.deleteMessage(messageId);
-        setMessages((current) =>
-          current.filter((message) => message._id !== messageId),
-        );
-      } catch {
-        toast.error("Failed to delete message.");
-      } finally {
-        setOpenMessageMenuId(null);
-      }
-    })();
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirmId) return;
+    try {
+      await messageService.deleteMessage(deleteConfirmId);
+      setMessages((current) =>
+        current.filter((message) => message._id !== deleteConfirmId),
+      );
+    } catch {
+      toast.error("Failed to delete message.");
+    } finally {
+      setDeleteConfirmId(null);
+    }
   };
 
   return (
@@ -571,18 +623,24 @@ const MessagesPage = () => {
                 messages.map((message) => {
                   const mine = getSenderId(message.senderId) === currentUserId;
                   const canEditMessage = canEditWithinTenMinutes(message.createdAt);
+                  const isEditing = editingMessageId === message._id;
                   return (
                     <div
                       key={message._id}
                       className={`group mb-2 flex w-full ${mine ? "justify-end" : "justify-start"}`}
                     >
                       <div className="flex items-center gap-1">
-                        {mine ? (
+                        {mine && !isEditing ? (
                           <div className="relative">
                             <button
                               type="button"
                               onClick={(event) => {
                                 event.stopPropagation();
+                                const rect = event.currentTarget.getBoundingClientRect();
+                                const containerRect = listRef.current?.getBoundingClientRect();
+                                const containerBottom = containerRect?.bottom ?? window.innerHeight;
+                                const spaceBelow = containerBottom - rect.bottom;
+                                setMenuPosition(spaceBelow < 120 ? "above" : "below");
                                 setOpenMessageMenuId((current) =>
                                   current === message._id ? null : message._id,
                                 );
@@ -599,7 +657,9 @@ const MessagesPage = () => {
 
                             {openMessageMenuId === message._id ? (
                               <div
-                                className="absolute left-0 z-20 mt-1 w-36 rounded-lg border border-neutral-200 bg-white py-1 shadow-lg"
+                                className={`absolute left-0 z-20 w-36 rounded-lg border border-neutral-200 bg-white py-1 shadow-lg ${
+                                  menuPosition === "above" ? "bottom-full mb-1" : "top-full mt-1"
+                                }`}
                                 onClick={(event) => event.stopPropagation()}
                               >
                                 <button
@@ -610,7 +670,7 @@ const MessagesPage = () => {
                                       ? "Edit message"
                                       : "Editing is available for 10 minutes only"
                                   }
-                                  onClick={() => handleEditMessage(message._id)}
+                                  onClick={() => handleStartEdit(message._id)}
                                   className="w-full px-3 py-2 text-left text-xs text-neutral-700 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:text-neutral-400 disabled:hover:bg-transparent"
                                 >
                                   Edit
@@ -634,20 +694,80 @@ const MessagesPage = () => {
                               : "rounded-tl-lg bg-neutral-200 text-neutral-900"
                           }`}
                         >
-                          <p className="whitespace-pre-wrap break-words">{message.content}</p>
-                          {message.attachments && message.attachments.length > 0 ? (
-                            <div className="mt-2 space-y-1">
-                              {message.attachments.map((attachment, idx) => (
-                                <a
-                                  key={`${message._id}-attachment-${idx}`}
-                                  href={attachment}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className={`block truncate text-xs underline ${mine ? "text-white" : "text-primary"}`}
+                          {isEditing ? (
+                            <div className="space-y-2">
+                              <input
+                                type="text"
+                                value={editDraft}
+                                onChange={(e) => setEditDraft(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    void handleConfirmEdit();
+                                  }
+                                  if (e.key === "Escape") handleCancelEdit();
+                                }}
+                                autoFocus
+                                className="w-full rounded-lg border border-white/30 bg-white/20 px-3 py-1.5 text-sm text-white placeholder-white/60 outline-none focus:border-white/60"
+                              />
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={handleCancelEdit}
+                                  className="rounded px-2 py-1 text-xs text-white/80 hover:text-white hover:bg-white/10"
                                 >
-                                  Attachment {idx + 1}
-                                </a>
-                              ))}
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleConfirmEdit()}
+                                  disabled={!editDraft.trim()}
+                                  className="rounded bg-white/20 px-2 py-1 text-xs text-white hover:bg-white/30 disabled:opacity-50"
+                                >
+                                  Save
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                          )}
+                          {message.attachments && message.attachments.length > 0 ? (
+                            <div className="mt-2 space-y-2">
+                              {message.attachments.map((attachment, idx) => {
+                                const urlPath = attachment.split("?")[0];
+                                const isImage = /\.(jpe?g|png|webp|gif)$/i.test(urlPath);
+                                const rawName = urlPath.split("/").pop() ?? `Attachment ${idx + 1}`;
+                                const fileName = decodeURIComponent(rawName);
+                                return isImage ? (
+                                  <button
+                                    key={`${message._id}-attachment-${idx}`}
+                                    type="button"
+                                    onClick={() => setPreviewImage(attachment)}
+                                    className="block cursor-pointer"
+                                  >
+                                    <img
+                                      src={attachment}
+                                      alt={fileName}
+                                      className="max-h-48 max-w-60 rounded-lg object-cover"
+                                    />
+                                  </button>
+                                ) : (
+                                  <a
+                                    key={`${message._id}-attachment-${idx}`}
+                                    href={attachment}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs ${
+                                      mine
+                                        ? "border-white/30 text-white hover:bg-white/10"
+                                        : "border-neutral-300 text-neutral-700 hover:bg-neutral-100"
+                                    }`}
+                                  >
+                                    <Download className="size-4 shrink-0" />
+                                    <span className="truncate">{fileName}</span>
+                                  </a>
+                                );
+                              })}
                             </div>
                           ) : null}
                           <p className={`mt-1 text-right text-[11px] ${mine ? "text-white/80" : "text-neutral-500"}`}>
@@ -661,8 +781,52 @@ const MessagesPage = () => {
               )}
             </div>
 
-            <div className="h-header border-t border-t-neutral-300 bg-white">
-              <div className="flex h-full gap-4 px-6 py-3">
+            <div className="border-t border-t-neutral-300 bg-white">
+              {attachedFiles.length > 0 && (
+                <div className="flex flex-wrap gap-2 px-6 pt-3">
+                  {attachedFiles.map((file, idx) => {
+                    const isImage = file.type.startsWith("image/");
+                    return (
+                      <div
+                        key={`${file.name}-${idx}`}
+                        className="group/file relative flex items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs"
+                      >
+                        {isImage ? (
+                          <ImageIcon className="size-4 shrink-0 text-primary-500" />
+                        ) : (
+                          <FileText className="size-4 shrink-0 text-neutral-500" />
+                        )}
+                        <span className="max-w-32 truncate">{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeAttachedFile(idx)}
+                          className="ml-1 rounded-full p-0.5 text-neutral-400 hover:bg-neutral-200 hover:text-neutral-700"
+                          aria-label={`Remove ${file.name}`}
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="flex h-header gap-4 px-6 py-3">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/png,image/webp,application/pdf,.doc,.docx"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="cursor-pointer rounded-lg p-3 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700"
+                  title="Attach files"
+                >
+                  <Paperclip className="size-5" />
+                </button>
                 <Input
                   type="text"
                   placeholder="Type a message..."
@@ -679,7 +843,7 @@ const MessagesPage = () => {
                 <button
                   type="button"
                   onClick={() => void handleSend()}
-                  disabled={sending || !draft.trim()}
+                  disabled={sending || (!draft.trim() && attachedFiles.length === 0)}
                   className="cursor-pointer rounded-lg bg-primary-500 p-3 text-white hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Send className="size-5" />
@@ -689,6 +853,64 @@ const MessagesPage = () => {
           </div>
         )}
       </div>
+
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <h6 className="mb-2 text-lg font-semibold text-neutral-900">Delete message</h6>
+            <p className="mb-6 text-sm text-neutral-600">
+              Are you sure you want to delete this message? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmId(null)}
+                className="rounded-lg border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleConfirmDelete()}
+                className="rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+          onClick={() => setPreviewImage(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setPreviewImage(null)}
+            className="absolute right-4 top-4 rounded-full bg-black/50 p-2 text-white hover:bg-black/70"
+            aria-label="Close preview"
+          >
+            <X className="size-6" />
+          </button>
+          <img
+            src={previewImage}
+            alt="Preview"
+            className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <a
+            href={previewImage}
+            download
+            onClick={(e) => e.stopPropagation()}
+            className="absolute bottom-6 rounded-lg bg-white/90 px-4 py-2 text-sm font-medium text-neutral-800 hover:bg-white flex items-center gap-2"
+          >
+            <Download className="size-4" />
+            Download
+          </a>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bell, Check, Trash2 } from "lucide-react";
+import { Bell, Check, CheckCheck, Trash2 } from "lucide-react";
 import { io, type Socket } from "socket.io-client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -120,6 +120,13 @@ const NotificationBell = () => {
     );
   };
 
+  const handleMarkAllAsRead = async () => {
+    await notificationService.markAllAsRead();
+    setNotifications((current) =>
+      current.map((item) => ({ ...item, isRead: true })),
+    );
+  };
+
   const handleDelete = async (notificationId: string) => {
     await notificationService.deleteNotification(notificationId);
     setNotifications((current) =>
@@ -202,9 +209,16 @@ const NotificationBell = () => {
           <div className="mb-2 flex items-center justify-between px-2">
             <h6>Notifications</h6>
             {unreadCount > 0 && (
-              <span className="text-xs font-medium text-primary">
-                {unreadCount} unread
-              </span>
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={() => void handleMarkAllAsRead()}
+                title="Mark all as read"
+                className="flex items-center gap-1 text-xs font-medium text-primary"
+              >
+                <CheckCheck className="size-4" />
+                Mark all as read
+              </Button>
             )}
           </div>
 
