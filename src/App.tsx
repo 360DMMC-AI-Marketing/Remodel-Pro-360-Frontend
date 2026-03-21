@@ -24,6 +24,7 @@ import ContractorVetting from "./pages/admin/ContractorVetting";
 import ContractorProjects from "./pages/contractor/ContractorProjects";
 import ContractorProjectDetails from "./pages/contractor/ContractorProjectDetails";
 import MessagesPage from "./pages/messages/MessagesPage";
+import FindContractors from "./pages/homeowner/FindContractors";
 
 interface ProtectedRoutesProps {
   allowedRole?: "homeowner" | "contractor" | "admin";
@@ -93,6 +94,7 @@ function App() {
             <Route path="/homeowner/projects" element={<Projects />} />
             <Route path="/homeowner/projects/new" element={<NewProject />} />
             <Route path="/homeowner/projects/:id" element={<Project />} />
+            <Route path="/homeowner/contractors" element={<FindContractors />} />
             <Route path="/homeowner/messages" element={<MessagesPage />} />
           </Route>
         </Route>

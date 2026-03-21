@@ -22,6 +22,39 @@ const formatTime = (value?: string) => {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 };
 
+const isSameDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate();
+
+const getDateLabel = (date: Date): string => {
+  const now = new Date();
+  if (isSameDay(date, now)) return formatTime(date.toISOString());
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (isSameDay(date, yesterday)) return `Yesterday · ${formatTime(date.toISOString())}`;
+  const sameYear = date.getFullYear() === now.getFullYear();
+  const dateStr = date.toLocaleDateString([], {
+    month: "long",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
+  return `${dateStr} · ${formatTime(date.toISOString())}`;
+};
+
+const TEN_MINUTES = 10 * 60 * 1000;
+
+const shouldShowSeparator = (
+  current: MessageRecord,
+  previous: MessageRecord | undefined,
+): boolean => {
+  const currentDate = new Date(current.createdAt ?? 0);
+  if (!previous) return true;
+  const previousDate = new Date(previous.createdAt ?? 0);
+  if (!isSameDay(currentDate, previousDate)) return true;
+  return currentDate.getTime() - previousDate.getTime() > TEN_MINUTES;
+};
+
 const getSenderDisplayName = (sender: MessageRecord["senderId"]) => {
   if (!sender || typeof sender === "string") return "User";
   const fullName = `${sender.firstName ?? ""} ${sender.lastName ?? ""}`.trim();
@@ -201,11 +234,21 @@ const ProjectChat = ({
             ) : messages.length === 0 ? (
               <p className="text-sm text-neutral-500">No messages yet. Start the conversation.</p>
             ) : (
-              messages.map((message) => {
+              messages.map((message, index) => {
                 const mine = getSenderId(message.senderId) === currentUserId;
+                const showSep = shouldShowSeparator(message, messages[index - 1]);
                 return (
+                  <div key={message._id}>
+                    {showSep && (
+                      <div className="my-2 flex items-center gap-2">
+                        <div className="h-px flex-1 bg-neutral-200" />
+                        <span className="text-[11px] text-neutral-400">
+                          {getDateLabel(new Date(message.createdAt ?? 0))}
+                        </span>
+                        <div className="h-px flex-1 bg-neutral-200" />
+                      </div>
+                    )}
                   <div
-                    key={message._id}
                     className={`max-w-[85%] rounded-xl border p-3 ${
                       mine
                         ? "ml-auto border-primary-200 bg-primary-50"
@@ -241,6 +284,7 @@ const ProjectChat = ({
                     <p className="mt-2 text-right text-[11px] text-neutral-500">
                       {formatTime(message.createdAt)}
                     </p>
+                  </div>
                   </div>
                 );
               })

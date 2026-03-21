@@ -66,8 +66,9 @@ const ContractorProfile = () => {
     city: "",
     state: "",
     yearsOfExperience: "",
-    specialties: "",
+    specialties: [] as string[],
   });
+  const [specialtyInput, setSpecialtyInput] = useState("");
   const [vettingFiles, setVettingFiles] = useState<UploadedDoc[]>([]);
   const [serviceArea, setServiceArea] = useState<ServiceAreaPolygon | null>(null);
   const [draggingFiles, setDraggingFiles] = useState(false);
@@ -205,7 +206,7 @@ const ContractorProfile = () => {
       yearsOfExperience: user.contractor?.experienceYears
         ? String(user.contractor.experienceYears)
         : "",
-      specialties: user.contractor?.specialties?.join(", ") ?? "",
+      specialties: user.contractor?.specialties ?? [],
     });
     console.log(user.contractor?.serviceArea);
     setServiceArea(user.contractor?.serviceArea ?? null);
@@ -296,10 +297,7 @@ const ContractorProfile = () => {
     const parsedExperienceYears = basicInfo.yearsOfExperience.trim()
       ? Number(basicInfo.yearsOfExperience)
       : undefined;
-    const parsedSpecialties = basicInfo.specialties
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
+    const parsedSpecialties = basicInfo.specialties;
 
     if (
       parsedExperienceYears !== undefined &&
@@ -467,14 +465,58 @@ const ContractorProfile = () => {
           </div>
           <div className="flex flex-col gap-2 col-span-1 md:col-span-2">
             <label htmlFor="specialties">Specialties</label>
-            <Input
-              id="specialties"
-              placeholder="ex: Plumbing, HVAC, Electrical"
-              value={basicInfo.specialties}
-              onChange={(e) =>
-                setBasicInfo({ ...basicInfo, specialties: e.target.value })
-              }
-            />
+            <div className="min-h-10 flex flex-wrap gap-1.5 rounded-lg border border-neutral-300 bg-white px-3 py-2 transition-colors focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 focus-within:ring-offset-0">
+              {basicInfo.specialties.map((s) => (
+                <span
+                  key={s}
+                  className="inline-flex items-center gap-1 rounded-full bg-primary-100 px-2.5 py-0.5 text-sm font-medium text-primary-700"
+                >
+                  {s}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setBasicInfo({
+                        ...basicInfo,
+                        specialties: basicInfo.specialties.filter((x) => x !== s),
+                      })
+                    }
+                    className="ml-0.5 rounded-full hover:text-primary-900"
+                    aria-label={`Remove ${s}`}
+                  >
+                    <X size={12} />
+                  </button>
+                </span>
+              ))}
+              <input
+                id="specialties"
+                value={specialtyInput}
+                onChange={(e) => setSpecialtyInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const val = specialtyInput.trim();
+                    if (val && !basicInfo.specialties.includes(val)) {
+                      setBasicInfo({
+                        ...basicInfo,
+                        specialties: [...basicInfo.specialties, val],
+                      });
+                    }
+                    setSpecialtyInput("");
+                  } else if (
+                    e.key === "Backspace" &&
+                    !specialtyInput &&
+                    basicInfo.specialties.length > 0
+                  ) {
+                    setBasicInfo({
+                      ...basicInfo,
+                      specialties: basicInfo.specialties.slice(0, -1),
+                    });
+                  }
+                }}
+                placeholder={basicInfo.specialties.length === 0 ? "Type and press Enter..." : ""}
+                className="min-w-32 flex-1 bg-transparent text-sm outline-none placeholder:text-neutral-400"
+              />
+            </div>
           </div>
           <div className="flex flex-col gap-2 col-span-1 md:col-span-2">
             <label htmlFor="years">Years of Experience</label>

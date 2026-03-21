@@ -36,7 +36,17 @@ type MessageProject = {
   contractor?: PersonSummary;
 };
 
-const toPerson = (value: any): PersonSummary | undefined => {
+type RawPerson = PersonSummary | string | null | undefined;
+
+type RawProject = {
+  _id: string;
+  title?: string;
+  status?: string;
+  homeownerId?: RawPerson;
+  contractorId?: RawPerson;
+};
+
+const toPerson = (value: RawPerson): PersonSummary | undefined => {
   if (!value || typeof value === "string") return undefined;
   return {
     _id: value._id,
@@ -46,7 +56,7 @@ const toPerson = (value: any): PersonSummary | undefined => {
   };
 };
 
-const toMessageProject = (project: any): MessageProject => ({
+const toMessageProject = (project: RawProject): MessageProject => ({
   _id: project._id,
   title: project.title ?? "Untitled project",
   status: project.status,
@@ -67,6 +77,39 @@ const formatTime = (value?: string) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+};
+
+const isSameDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate();
+
+const getDateLabel = (date: Date): string => {
+  const now = new Date();
+  if (isSameDay(date, now)) return formatTime(date.toISOString());
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (isSameDay(date, yesterday)) return `Yesterday · ${formatTime(date.toISOString())}`;
+  const sameYear = date.getFullYear() === now.getFullYear();
+  const dateStr = date.toLocaleDateString([], {
+    month: "long",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
+  return `${dateStr} · ${formatTime(date.toISOString())}`;
+};
+
+const TEN_MINUTES = 10 * 60 * 1000;
+
+const shouldShowSeparator = (
+  current: MessageRecord,
+  previous: MessageRecord | undefined,
+): boolean => {
+  const currentDate = new Date(current.createdAt ?? 0);
+  if (!previous) return true;
+  const previousDate = new Date(previous.createdAt ?? 0);
+  if (!isSameDay(currentDate, previousDate)) return true;
+  return currentDate.getTime() - previousDate.getTime() > TEN_MINUTES;
 };
 
 const canEditWithinTenMinutes = (createdAt?: string) => {
@@ -209,7 +252,7 @@ const MessagesPage = () => {
 
   const loadHomeownerProjects = async () => {
     const response = await getProjectsWithFilters({ page: 1, limit: 100 });
-    return (response.projects ?? []).map((project: any) => toMessageProject(project));
+    return (response.projects ?? []).map((project: RawProject) => toMessageProject(project));
   };
 
   const loadContractorProjects = async () => {
@@ -620,13 +663,24 @@ const MessagesPage = () => {
               ) : messages.length === 0 ? (
                 <p className="text-sm text-neutral-500">No messages yet. Start the conversation.</p>
               ) : (
-                messages.map((message) => {
+                messages.map((message, index) => {
                   const mine = getSenderId(message.senderId) === currentUserId;
                   const canEditMessage = canEditWithinTenMinutes(message.createdAt);
                   const isEditing = editingMessageId === message._id;
+                  const showSep = shouldShowSeparator(message, messages[index - 1]);
                   return (
+                    <div key={message._id}>
+                      {showSep && (
+                        <div className="my-3 flex items-center gap-3">
+                          <div className="h-px flex-1 bg-neutral-200" />
+                          <span className="text-[11px] text-neutral-400">
+                            {getDateLabel(new Date(message.createdAt ?? 0))}
+                          </span>
+                          <div className="h-px flex-1 bg-neutral-200" />
+                        </div>
+                      )}
                     <div
-                      key={message._id}
+                      key={`msg-${message._id}`}
                       className={`group mb-2 flex w-full ${mine ? "justify-end" : "justify-start"}`}
                     >
                       <div className="flex items-center gap-1">
@@ -729,7 +783,7 @@ const MessagesPage = () => {
                               </div>
                             </div>
                           ) : (
-                            <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                            <p className="whitespace-pre-wrap wrap-break-word">{message.content}</p>
                           )}
                           {message.attachments && message.attachments.length > 0 ? (
                             <div className="mt-2 space-y-2">
@@ -775,6 +829,7 @@ const MessagesPage = () => {
                           </p>
                         </div>
                       </div>
+                    </div>
                     </div>
                   );
                 })
