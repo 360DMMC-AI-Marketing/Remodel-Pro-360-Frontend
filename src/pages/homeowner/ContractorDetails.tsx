@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ChevronLeft,
@@ -10,6 +10,9 @@ import {
   ImageOff,
   MessageSquare,
 } from "lucide-react";
+import { MapContainer, TileLayer, Polygon, useMap } from "react-leaflet";
+import type { LatLngTuple } from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { toast } from "sonner";
 import { Card } from "@/components/molecules/Card";
 import { Button } from "@/components/atoms/Button";
@@ -57,6 +60,55 @@ const getAuthorInitials = (homeownerId: Review["homeownerId"]) => {
 
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString([], { year: "numeric", month: "long", day: "numeric" });
+
+// ─── Service Area Map ─────────────────────────────────────────────────────────
+
+type ServiceAreaPolygon = { type: "Polygon"; coordinates: number[][][] };
+
+// Converts GeoJSON [lng, lat] to Leaflet [lat, lng]
+const toLatLng = (coords: number[][][]): LatLngTuple[][] =>
+  coords.map((ring) => ring.map(([lng, lat]) => [lat, lng] as LatLngTuple));
+
+const FitBounds = ({ positions }: { positions: LatLngTuple[][] }) => {
+  const map = useMap();
+  const fitted = useRef(false);
+  useEffect(() => {
+    if (fitted.current || positions[0]?.length === 0) return;
+    map.fitBounds(positions[0].map((p) => p as LatLngTuple), { padding: [24, 24] });
+    fitted.current = true;
+  }, [map, positions]);
+  return null;
+};
+
+const ServiceAreaMap = ({ serviceArea }: { serviceArea: ServiceAreaPolygon }) => {
+  const positions = toLatLng(serviceArea.coordinates);
+  const center: LatLngTuple = positions[0]?.[0] ?? [41.8781, -87.6298];
+
+  return (
+    <div className="mt-8">
+      <h2 className="mb-4 text-lg font-semibold text-neutral-900">Service Area</h2>
+      <div className="overflow-hidden rounded-xl border border-neutral-200" style={{ height: 320 }}>
+        <MapContainer
+          center={center}
+          zoom={10}
+          scrollWheelZoom={false}
+          zoomControl={false}
+          style={{ height: "100%", width: "100%" }}
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          <Polygon
+            positions={positions}
+            pathOptions={{ color: "#4f46e5", fillColor: "#6366f1", fillOpacity: 0.2, weight: 2 }}
+          />
+          <FitBounds positions={positions} />
+        </MapContainer>
+      </div>
+    </div>
+  );
+};
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -180,12 +232,6 @@ const ContractorDetails = () => {
                   {location}
                 </span>
               )}
-              {info.serviceArea && (
-                <span className="flex items-center gap-1.5">
-                  <MapPin size={14} />
-                  Service area defined
-                </span>
-              )}
             </div>
           </div>
 
@@ -222,6 +268,9 @@ const ContractorDetails = () => {
           </div>
         )}
       </Card>
+
+      {/* ── Service Area ────────────────────────────────────────────────────── */}
+      {info.serviceArea && <ServiceAreaMap serviceArea={info.serviceArea} />}
 
       {/* ── Portfolio ───────────────────────────────────────────────────────── */}
       <section className="mt-8">

@@ -5,6 +5,7 @@ import type { HomeownerProject } from "@/types/project";
 import { deleteProject, getProjectById, updateProject, updateProjectStatus } from "@/api/porject";
 import { bidService, type HomeownerBid } from "@/api/bid";
 import { contractService, type ContractRecord } from "@/api/contract";
+import { milestoneService, type MilestoneRecord } from "@/api/milestone";
 import { ArrowLeft, ChevronLeft, ChevronRight, Edit3, MoreHorizontal, Save, Trash2, Upload, X } from "lucide-react";
 import { Button } from "@/components/atoms/Button";
 import { Badge } from "@/components/atoms/Badge";
@@ -58,6 +59,11 @@ const Project = () => {
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [removedImageUrls, setRemovedImageUrls] = useState<string[]>([]);
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [milestones, setMilestones] = useState<MilestoneRecord[]>([]);
+  const [loadingMilestones, setLoadingMilestones] = useState(false);
+  const [updatingMilestoneId, setUpdatingMilestoneId] = useState<string | null>(null);
+  const [selectedBidIds, setSelectedBidIds] = useState<string[]>([]);
+  const [showCompare, setShowCompare] = useState(false);
   const actionsMenuRef = useRef<HTMLDivElement | null>(null);
   const [editForm, setEditForm] = useState<EditProjectForm>({
     title: "",
@@ -124,13 +130,25 @@ const Project = () => {
     }
   };
 
+  const loadMilestones = async (projectId: string) => {
+    try {
+      setLoadingMilestones(true);
+      const data = await milestoneService.getProjectMilestones(projectId);
+      setMilestones(data);
+    } catch {
+      // milestones may not exist yet
+    } finally {
+      setLoadingMilestones(false);
+    }
+  };
+
   useEffect(() => {
     const fetchProject = async () => {
         setLoading(true);
       try {
         const data = await getProjectById(id!);
         setProject(data.project);
-        await Promise.all([loadBids(id!), loadContract(id!)]);
+        await Promise.all([loadBids(id!), loadContract(id!), loadMilestones(id!)]);
         setLoading(false);
       } catch (error) {
         console.error("Failed to load project:", error);
@@ -300,6 +318,20 @@ const Project = () => {
     }
   };
 
+  const handleMilestoneStatus = async (milestoneId: string, status: string) => {
+    if (!id) return;
+    try {
+      setUpdatingMilestoneId(milestoneId);
+      const updated = await milestoneService.updateMilestoneStatus(milestoneId, status);
+      setMilestones((prev) => prev.map((m) => (m._id === updated._id ? updated : m)));
+      toast.success(`Milestone ${status.replace(/_/g, " ")}.`);
+    } catch {
+      toast.error("Failed to update milestone.");
+    } finally {
+      setUpdatingMilestoneId(null);
+    }
+  };
+
   const handleShortlistBid = async (bidId: string) => {
     if (!id) return;
     try {
@@ -335,6 +367,12 @@ const Project = () => {
   const openRejectDialog = (bidId: string) => {
     setRejectDialogBidId(bidId);
     setRejectReason("");
+  };
+
+  const toggleBidSelect = (bidId: string) => {
+    setSelectedBidIds((prev) =>
+      prev.includes(bidId) ? prev.filter((b) => b !== bidId) : [...prev, bidId],
+    );
   };
 
   const startEditing = () => {
@@ -897,8 +935,104 @@ const Project = () => {
         )}
       </div>
 
+      {/* Project Progress (shown after contract is signed) */}
+      {projectContract?.status === "signed" && (
+        <div className="mt-6 bg-white rounded-xl p-5 border border-neutral-200">
+          <h6 className="mb-4 text-neutral-800">Project Progress</h6>
+          {loadingMilestones ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => <Skeleton key={i} variant="text" className="w-full h-14" />)}
+            </div>
+          ) : milestones.length === 0 ? (
+            <p className="text-sm text-neutral-500">No milestones defined yet.</p>
+          ) : (
+            <div className="space-y-4">
+              {/* Overall progress bar */}
+              {(() => {
+                const done = milestones.filter((m) => ["approved", "paid"].includes(m.status)).length;
+                const pct = Math.round((done / milestones.length) * 100);
+                return (
+                  <div>
+                    <div className="flex justify-between text-xs text-neutral-500 mb-1">
+                      <span>{done} of {milestones.length} milestones complete</span>
+                      <span>{pct}%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-neutral-200 overflow-hidden">
+                      <div className="h-full bg-green-500 transition-all duration-300" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {milestones.map((m) => {
+                const statusColors: Record<string, string> = {
+                  pending: "bg-neutral-100 text-neutral-600",
+                  in_progress: "bg-blue-100 text-blue-700",
+                  submitted: "bg-amber-100 text-amber-700",
+                  approved: "bg-green-100 text-green-700",
+                  paid: "bg-emerald-100 text-emerald-700",
+                  disputed: "bg-red-100 text-red-700",
+                };
+                const busy = updatingMilestoneId === m._id;
+                return (
+                  <div key={m._id} className="rounded-xl border border-neutral-200 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium text-sm text-neutral-900">{m.order}. {m.name}</span>
+                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[m.status] ?? "bg-neutral-100 text-neutral-600"}`}>
+                            {m.status.replace(/_/g, " ")}
+                          </span>
+                        </div>
+                        {m.description && <p className="mt-1 text-xs text-neutral-500">{m.description}</p>}
+                        <div className="mt-2 flex flex-wrap gap-3 text-xs text-neutral-400">
+                          <span>{m.percentOfTotal}% · ${m.paymentAmount.toLocaleString()}</span>
+                          {m.estimatedDurationDays && <span>{m.estimatedDurationDays} days</span>}
+                        </div>
+                        {m.deliverables.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {m.deliverables.map((d, i) => (
+                              <span key={i} className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] text-neutral-500">{d}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {m.status === "submitted" && (
+                        <div className="flex gap-2 shrink-0">
+                          <Button size="xs" variant="primary" disabled={busy} onClick={() => void handleMilestoneStatus(m._id, "approved")}>
+                            {busy ? "..." : "Approve"}
+                          </Button>
+                          <Button size="xs" variant="danger" disabled={busy} onClick={() => void handleMilestoneStatus(m._id, "disputed")}>
+                            Dispute
+                          </Button>
+                        </div>
+                      )}
+                      {m.status === "approved" && (
+                        <Button size="xs" variant="outline" disabled={busy} onClick={() => void handleMilestoneStatus(m._id, "paid")}>
+                          {busy ? "..." : "Mark Paid"}
+                        </Button>
+                      )}
+                    </div>
+                    {m.status === "disputed" && (
+                      <p className="mt-2 text-xs text-red-500">You have disputed this milestone. The contractor has been notified and must restart the work.</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="mt-6 bg-white rounded-xl p-5 border border-neutral-200">
-        <h6 className="mb-4 text-neutral-800">Received Bids</h6>
+          <div className="flex items-center justify-between mb-4">
+            <h6 className="text-neutral-800">Received Bids</h6>
+            {selectedBidIds.length >= 2 && (
+              <Button size="xs" variant="outline" onClick={() => setShowCompare(true)}>
+                Compare {selectedBidIds.length} Bids
+              </Button>
+            )}
+          </div>
         {loadingBids ? (
           <div className="space-y-3">
             {[1, 2].map((item) => (
@@ -918,8 +1052,17 @@ const Project = () => {
               return (
                 <div
                   key={bid._id}
-                  className="rounded-xl border border-neutral-200 p-4"
+                  className={`rounded-xl border p-4 transition-colors ${selectedBidIds.includes(bid._id) ? "border-primary-300 bg-primary-50/30" : "border-neutral-200"}`}
                 >
+                  <label className="flex items-center gap-2 mb-2 cursor-pointer w-fit">
+                    <input
+                      type="checkbox"
+                      checked={selectedBidIds.includes(bid._id)}
+                      onChange={() => toggleBidSelect(bid._id)}
+                      className="size-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
+                    />
+                    <span className="text-xs text-neutral-500">Compare</span>
+                  </label>
                   <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                     <div>
                       <p className="font-semibold text-neutral-800">
@@ -993,6 +1136,58 @@ const Project = () => {
           </div>
         )}
       </div>
+
+      {/* Bid Comparison Modal */}
+      {showCompare && selectedBidIds.length >= 2 && (() => {
+        const compareBids = bids.filter((b) => selectedBidIds.includes(b._id));
+        return createPortal(
+          <div className="fixed inset-0 z-60 flex items-center justify-center p-4 sm:p-6">
+            <button type="button" className="absolute inset-0 bg-neutral-950/55" onClick={() => setShowCompare(false)} aria-label="Close" />
+            <div className="relative z-10 w-full max-w-4xl rounded-2xl border border-neutral-200 bg-white p-6 shadow-2xl overflow-auto max-h-[90vh]">
+              <div className="flex items-center justify-between mb-5">
+                <h5 className="font-semibold">Bid Comparison</h5>
+                <button type="button" onClick={() => setShowCompare(false)} className="rounded-full p-2 text-neutral-500 hover:bg-neutral-100">
+                  <X className="size-4" />
+                </button>
+              </div>
+              <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${compareBids.length}, 1fr)` }}>
+                {compareBids.map((bid) => (
+                  <div key={bid._id} className="rounded-xl border border-neutral-200 p-4 space-y-3">
+                    <div>
+                      <p className="font-semibold text-neutral-900 text-sm">{getContractorName(bid)}</p>
+                      <Badge variant="primary" className="mt-1">{bid.status}</Badge>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div className="rounded-lg bg-primary-50 px-3 py-2 text-center">
+                        <p className="text-xs text-neutral-500">Bid Amount</p>
+                        <p className="text-lg font-bold text-primary-700">${bid.amount.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-neutral-500">Est. Start</p>
+                        <p className="font-medium text-neutral-800">{bid.estimatedStartDate ? new Date(bid.estimatedStartDate).toLocaleDateString() : "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-neutral-500">Duration</p>
+                        <p className="font-medium text-neutral-800">{bid.estimatedDurationDays ? `${bid.estimatedDurationDays} days` : "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-neutral-500">Message</p>
+                        <p className="text-neutral-700 text-xs leading-relaxed line-clamp-4">{bid.message || "No message"}</p>
+                      </div>
+                    </div>
+                    {(bid.status === "submitted" || bid.status === "shortlisted") && project?.status === "bidding" && (
+                      <Button size="xs" variant="primary" className="w-full" disabled={Boolean(actingBidId)} onClick={() => void handleAcceptBid(bid._id)}>
+                        Accept This Bid
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        );
+      })()}
 
       {isRejectDialogOpen &&
         createPortal(
