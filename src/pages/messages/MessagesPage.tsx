@@ -199,6 +199,7 @@ const MessagesPage = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [unreadMap, setUnreadMap] = useState<Map<string, number>>(new Map());
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -257,22 +258,18 @@ const MessagesPage = () => {
 
   const loadHomeownerProjects = async () => {
     const response = await getProjectsWithFilters({ page: 1, limit: 100 });
-    return (response.projects ?? []).map((project: RawProject) => toMessageProject(project));
+    return (response.projects ?? [])
+      .map((project: RawProject) => toMessageProject(project))
+      .filter((project) => project.contractorId);
   };
 
   const loadContractorProjects = async () => {
-    const [biddingProjects, bidList] = await Promise.all([
-      bidService.getBiddingProjects(),
-      bidService.getMyBids(),
-    ]);
+    const bidList = await bidService.getMyBids();
+    const acceptedBids = bidList.filter((bid) => bid.status === "accepted");
 
-    const projectMap = new Map<string, MessageProject>(
-      biddingProjects.map((project) => [project._id, toMessageProject(project)]),
-    );
-
-    const bidProjectIds = Array.from(
+    const projectIds = Array.from(
       new Set(
-        bidList
+        acceptedBids
           .map((bid) =>
             typeof bid.projectId === "string" ? bid.projectId : bid.projectId?._id,
           )
@@ -280,21 +277,18 @@ const MessagesPage = () => {
       ),
     );
 
-    const missingIds = bidProjectIds.filter((id) => !projectMap.has(id));
-    const missingResults = await Promise.allSettled(
-      missingIds.map((projectId) => getProjectById(projectId)),
+    const results = await Promise.allSettled(
+      projectIds.map((projectId) => getProjectById(projectId)),
     );
 
-    for (const result of missingResults) {
+    const projects: MessageProject[] = [];
+    for (const result of results) {
       if (result.status === "fulfilled" && result.value?.project?._id) {
-        projectMap.set(
-          result.value.project._id,
-          toMessageProject(result.value.project),
-        );
+        projects.push(toMessageProject(result.value.project));
       }
     }
 
-    return Array.from(projectMap.values());
+    return projects;
   };
 
   const loadProjects = async () => {
@@ -333,8 +327,20 @@ const MessagesPage = () => {
     }
   };
 
+  const loadUnreadCounts = async () => {
+    try {
+      const data = await messageService.getUnreadCounts();
+      const map = new Map<string, number>();
+      for (const item of data.counts) {
+        map.set(item.projectId, item.count);
+      }
+      setUnreadMap(map);
+    } catch { /* ignore */ }
+  };
+
   useEffect(() => {
     void loadProjects();
+    void loadUnreadCounts();
   }, [role]);
 
   useEffect(() => {
@@ -601,7 +607,10 @@ const MessagesPage = () => {
                 <button
                   key={project._id}
                   type="button"
-                  onClick={() => setSelectedProjectId(project._id)}
+                  onClick={() => {
+                    setSelectedProjectId(project._id);
+                    setUnreadMap((prev) => { const next = new Map(prev); next.delete(project._id); return next; });
+                  }}
                   className={`relative flex w-full items-center gap-3 border-b border-b-neutral-200 p-4 text-left cursor-pointer transition-colors ${
                     active ? "bg-neutral-100" : "hover:bg-neutral-100"
                   }`}
@@ -611,10 +620,15 @@ const MessagesPage = () => {
                   >
                     {getInitials(name)}
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <h6 className="font-normal">{name}</h6>
                     <p className="truncate text-sm text-neutral-500">{project.title}</p>
                   </div>
+                  {(unreadMap.get(project._id) ?? 0) > 0 && (
+                    <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-primary-500 px-1.5 text-[11px] font-semibold text-white shrink-0">
+                      {unreadMap.get(project._id)}
+                    </span>
+                  )}
                 </button>
               );
             })

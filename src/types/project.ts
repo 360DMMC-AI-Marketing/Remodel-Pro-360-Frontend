@@ -25,4 +25,10 @@ export interface HomeownerProject {
   };
   startDate?: string;
   createdAt?: string;
+  milestoneIds?: {
+    _id: string;
+    status: string;
+    paymentAmount: number;
+    percentOfTotal: number;
+  }[];
 }

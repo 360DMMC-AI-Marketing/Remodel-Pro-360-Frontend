@@ -9,9 +9,20 @@ import { Skeleton } from "@/components/atoms/Skeleton";
 import { useNavigate } from "react-router-dom";
 import type { HomeownerProject } from "@/types/project";
 import { Input } from "@/components/atoms/Input";
+import { Badge } from "@/components/atoms/Badge";
 import imagePlaceholder from "@/assets/image-placeholder.png";
 
 const BASE_IMAGE_URL = "https://rp360-uploads.s3.us-east-1.amazonaws.com/";
+
+const statusVariant = (status?: string): "primary" | "success" | "warning" | "error" | "draft" => {
+  switch (status) {
+    case "in_progress": return "warning";
+    case "completed": return "success";
+    case "cancelled": return "error";
+    case "draft": return "draft";
+    default: return "primary";
+  }
+};
 
 const Projects = () => {
   const { user } = useAuth();
@@ -205,10 +216,33 @@ const Projects = () => {
                       </div>
                     </div>
                   </div>
-                  <span className="w-fit rounded-full bg-neutral-100 px-2.5 py-1 text-xs text-neutral-700 capitalize">
-                    {project.status ?? "draft"}
-                  </span>
+                  <Badge variant={statusVariant(project.status)}>
+                    {(project.status ?? "draft").replace(/_/g, " ")}
+                  </Badge>
                 </div>
+
+                {/* Milestone progress bar */}
+                {project.milestoneIds && project.milestoneIds.length > 0 && (
+                  (() => {
+                    const total = project.milestoneIds.length;
+                    const done = project.milestoneIds.filter((m) => m.status === "approved" || m.status === "paid").length;
+                    const pct = Math.round((done / total) * 100);
+                    return (
+                      <div className="mt-3">
+                        <div className="flex justify-between text-[11px] text-neutral-400 mb-1">
+                          <span>{done}/{total} milestones</span>
+                          <span>{pct}%</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-neutral-100 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${pct === 100 ? "bg-green-500" : "bg-primary-500"}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()
+                )}
               </Card>
             );
           })}

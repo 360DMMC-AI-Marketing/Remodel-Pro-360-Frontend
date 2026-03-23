@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { useAuth } from "@/stores/useAuth";
+import { messageService } from "@/api/message";
 import {
   LayoutDashboard,
   Palette,
@@ -54,6 +56,17 @@ const SideBar = ({
   const { user, logout } = useAuth();
   const location = useLocation();
   const links = user?.role === 'homeowner' ? homeownerLinks : user?.role === 'contractor' ? contractorLinks : adminLinks;
+  const [unreadTotal, setUnreadTotal] = useState(0);
+
+  useEffect(() => {
+    if (!user || user.role === "admin") return;
+    const load = () => {
+      messageService.getUnreadCounts().then((d) => setUnreadTotal(d.total)).catch(() => {});
+    };
+    load();
+    const interval = setInterval(load, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
   return (
     <div
       className={`fixed top-0 left-0 h-screen ${isCollapsed ? "w-sidebar-collapsed" : "w-sidebar"} transition-all duration-300 bg-white border-r border-r-neutral-200 flex flex-col`}
@@ -78,9 +91,14 @@ const SideBar = ({
                 `flex items-center space-x-2 p-3 rounded-xl cursor-pointer ${active ? 'bg-primary-100' : 'group hover:bg-neutral-100 transition-colors duration-200'}`
               }
             >
-              <l.icon size={22} className={active ? 'text-primary-600' : 'text-neutral-500 group-hover:text-neutral-800 transition-colors duration-200'} />
+              <l.icon size={22} className={`shrink-0 ${active ? 'text-primary-600' : 'text-neutral-500 group-hover:text-neutral-800 transition-colors duration-200'}`} />
               {!isCollapsed && (
-                <span className={`text-base ${active ? 'text-primary-500' : 'text-neutral-500 group-hover:text-neutral-800 transition-colors duration-200'}`}>{l.label}</span>
+                <span className={`flex-1 text-base ${active ? 'text-primary-500' : 'text-neutral-500 group-hover:text-neutral-800 transition-colors duration-200'}`}>{l.label}</span>
+              )}
+              {l.label === "Messages" && unreadTotal > 0 && (
+                <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-primary-500 px-1.5 text-[11px] font-semibold text-white">
+                  {unreadTotal > 99 ? "99+" : unreadTotal}
+                </span>
               )}
             </Link>
           )})}

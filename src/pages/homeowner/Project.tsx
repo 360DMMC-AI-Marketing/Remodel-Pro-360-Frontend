@@ -6,7 +6,9 @@ import { deleteProject, getProjectById, updateProject, updateProjectStatus } fro
 import { bidService, type HomeownerBid } from "@/api/bid";
 import { contractService, type ContractRecord } from "@/api/contract";
 import { milestoneService, type MilestoneRecord } from "@/api/milestone";
-import { ArrowLeft, ChevronLeft, ChevronRight, Edit3, MoreHorizontal, Save, Trash2, Upload, X } from "lucide-react";
+import { paymentService, type EscrowStatus } from "@/api/payment";
+import { PaymentForm } from "@/components/PaymentForm";
+import { ArrowLeft, ChevronLeft, ChevronRight, DollarSign, Edit3, MessageSquare, MoreHorizontal, Save, Trash2, Upload, X } from "lucide-react";
 import { Button } from "@/components/atoms/Button";
 import { Badge } from "@/components/atoms/Badge";
 import { Skeleton } from "@/components/atoms/Skeleton";
@@ -35,6 +37,44 @@ interface EditProjectForm {
 
 const BASE_IMAGE_URL = "https://rp360-uploads.s3.us-east-1.amazonaws.com/";
 
+const projectStatusVariant = (status?: string): "primary" | "success" | "warning" | "error" | "draft" => {
+  switch (status) {
+    case "in_progress": return "warning";
+    case "completed": return "success";
+    case "cancelled": return "error";
+    case "draft": return "draft";
+    default: return "primary";
+  }
+};
+
+const bidStatusVariant = (status?: string): "primary" | "success" | "warning" | "error" | "draft" => {
+  switch (status) {
+    case "shortlisted": return "warning";
+    case "accepted": return "success";
+    case "rejected": return "error";
+    case "withdrawn": case "draft": return "draft";
+    default: return "primary";
+  }
+};
+
+const milestoneStatusVariant = (status?: string): "primary" | "success" | "warning" | "error" | "draft" => {
+  switch (status) {
+    case "in_progress": return "primary";
+    case "submitted": return "warning";
+    case "approved": case "paid": return "success";
+    case "disputed": return "error";
+    default: return "draft";
+  }
+};
+
+const contractStatusVariant = (status?: string): "primary" | "success" | "warning" | "error" | "draft" => {
+  switch (status) {
+    case "pending_signatures": return "warning";
+    case "signed": return "success";
+    default: return "draft";
+  }
+};
+
 const Project = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -62,7 +102,13 @@ const Project = () => {
   const [milestones, setMilestones] = useState<MilestoneRecord[]>([]);
   const [loadingMilestones, setLoadingMilestones] = useState(false);
   const [updatingMilestoneId, setUpdatingMilestoneId] = useState<string | null>(null);
+  const [escrowStatus, setEscrowStatus] = useState<EscrowStatus | null>(null);
+  const [loadingEscrow, setLoadingEscrow] = useState(false);
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [selectedBidIds, setSelectedBidIds] = useState<string[]>([]);
+  const [acceptDialogBidId, setAcceptDialogBidId] = useState<string | null>(null);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [showCompare, setShowCompare] = useState(false);
   const actionsMenuRef = useRef<HTMLDivElement | null>(null);
   const [editForm, setEditForm] = useState<EditProjectForm>({
@@ -142,13 +188,25 @@ const Project = () => {
     }
   };
 
+  const loadEscrow = async (projectId: string) => {
+    try {
+      setLoadingEscrow(true);
+      const data = await paymentService.getEscrowStatus(projectId);
+      setEscrowStatus(data);
+    } catch {
+      // escrow may not exist yet
+    } finally {
+      setLoadingEscrow(false);
+    }
+  };
+
   useEffect(() => {
     const fetchProject = async () => {
         setLoading(true);
       try {
         const data = await getProjectById(id!);
         setProject(data.project);
-        await Promise.all([loadBids(id!), loadContract(id!), loadMilestones(id!)]);
+        await Promise.all([loadBids(id!), loadContract(id!), loadMilestones(id!), loadEscrow(id!)]);
         setLoading(false);
       } catch (error) {
         console.error("Failed to load project:", error);
@@ -236,7 +294,7 @@ const Project = () => {
 
   const address = project?.address ? `${project.address.street}, ${project.address.city}, ${project.address.state} ${project.address.zipCode}` : "N/A";
 
-  const handleStatusUpdate = async (status: "draft" | "bidding") => {
+  const handleStatusUpdate = async (status: "draft" | "bidding" | "cancelled") => {
     if (!id || !project) return;
     if (project.status === status) return;
 
@@ -252,6 +310,26 @@ const Project = () => {
       setIsUpdatingStatus(false);
     }
   };
+
+  const handleCancelProject = async () => {
+    if (!id || !project) return;
+    try {
+      setIsCancelling(true);
+      const response = await updateProjectStatus(id, "cancelled");
+      setProject(response.project);
+      toast.success("Project cancelled.");
+      setShowCancelDialog(false);
+    } catch {
+      toast.error("Failed to cancel project.");
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  const canCancel =
+    project &&
+    !["cancelled", "completed", "in_progress"].includes(project.status) &&
+    projectContract?.status !== "signed";
 
   const getContractorName = (bid: HomeownerBid) => {
     if (typeof bid.contractorId === "string") return "Contractor";
@@ -276,6 +354,7 @@ const Project = () => {
       ]);
       setProject(projectData.project);
       toast.success("Bid accepted successfully.");
+      setAcceptDialogBidId(null);
     } catch (error) {
       console.error("Failed to accept bid:", error);
       toast.error("Failed to accept bid.");
@@ -537,10 +616,19 @@ const Project = () => {
             <div>
               <span className="flex items-center space-x-4">
                 <h4>{project?.title}</h4>
-                <Badge variant="primary">{project?.status}</Badge>
+                <Badge variant={projectStatusVariant(project?.status)}>{project?.status?.replace(/_/g, " ")}</Badge>
               </span>
             </div>
-            <div className="relative" ref={actionsMenuRef}>
+            <div className="flex items-center gap-2">
+              {projectContract?.contractorId && (
+                <Link to="/homeowner/messages">
+                  <Button size="xs" variant="outline">
+                    <MessageSquare size={14} className="mr-1.5" />
+                    Message
+                  </Button>
+                </Link>
+              )}
+              <div className="relative" ref={actionsMenuRef}>
               <button
                 onClick={() => setActionsOpen((prev) => !prev)}
                 className="p-2 rounded-full cursor-pointer hover:bg-secondary-100 group"
@@ -628,6 +716,7 @@ const Project = () => {
                   </button>
                 </div>
               )}
+            </div>
             </div>
           </>
         )}
@@ -881,6 +970,7 @@ const Project = () => {
         </div>
       </div>
 
+      {/* Contract */}
       <div className="mt-6 bg-white rounded-xl p-5 border border-neutral-200">
         <h6 className="mb-4 text-neutral-800">Contract Signature</h6>
 
@@ -893,7 +983,7 @@ const Project = () => {
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-neutral-700">
-              Status: <span className="font-semibold capitalize">{projectContract.status.split("_").join(" ")}</span>
+              Status: <Badge variant={contractStatusVariant(projectContract.status)}>{projectContract.status.split("_").join(" ")}</Badge>
             </p>
             <p className="text-sm text-neutral-700">
               Homeowner signed: {hasPartySigned("homeowner") ? "Yes" : "No"}
@@ -930,12 +1020,85 @@ const Project = () => {
                   {isSigningContract ? "Signing..." : "Sign as Homeowner"}
                 </Button>
               )}
+
+              {canCancel && (
+                <Button size="xs" variant="danger" onClick={() => setShowCancelDialog(true)}>
+                  Cancel Project
+                </Button>
+              )}
             </div>
           </div>
         )}
       </div>
 
-      {/* Project Progress (shown after contract is signed) */}
+      {/* Payment & Escrow */}
+      {projectContract?.status === "signed" && (
+        <div className="mt-6 bg-white rounded-xl p-5 border border-neutral-200">
+          <h6 className="mb-4 text-neutral-800">Payment & Escrow</h6>
+          {loadingEscrow ? (
+            <Skeleton variant="text" className="w-full h-16" />
+          ) : escrowStatus?.funded ? (
+            <div className="rounded-xl border border-green-200 bg-green-50 p-4 flex items-start gap-3">
+              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-100">
+                <svg className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-green-800">Project Funded — ${escrowStatus.totalDeposited.toLocaleString()} in escrow</p>
+                <p className="mt-1 text-xs text-green-700">
+                  Funds are securely held. ${escrowStatus.released.toLocaleString()} released · ${escrowStatus.held.toLocaleString()} remaining.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-4 space-y-3">
+              <p className="text-sm text-neutral-600">
+                Fund the project to start work. A 4% platform fee applies.
+              </p>
+              <Button variant="primary" size="sm" onClick={() => setShowPaymentForm(true)}>
+                Fund Project
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Milestone Timeline (after contract signed) */}
+      {projectContract?.status === "signed" && milestones.length > 0 && (
+        <div className="mt-6 bg-white rounded-xl p-5 border border-neutral-200">
+          <h6 className="mb-4 text-neutral-800">Project Timeline</h6>
+          <div className="relative pl-6 space-y-4">
+            {milestones.map((m, i) => {
+              const done = ["approved", "paid"].includes(m.status);
+              const active = m.status === "in_progress" || m.status === "submitted";
+              const date = m.status === "paid" ? m.paidAt : done ? m.updatedAt : undefined;
+              const isLast = i === milestones.length - 1;
+              return (
+                <div key={m._id} className="relative flex items-start gap-3">
+                  <div className="absolute -left-6 top-0.5 flex flex-col items-center">
+                    <div className={`size-3 rounded-full border-2 ${done ? "bg-green-500 border-green-500" : active ? "bg-primary-500 border-primary-500" : "bg-white border-neutral-300"}`} />
+                    {!isLast && (
+                      <div className={`w-0.5 h-6 ${done ? "bg-green-300" : "bg-neutral-200"}`} />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className={`text-sm ${done ? "text-neutral-900 font-medium" : active ? "text-primary-700 font-medium" : "text-neutral-400"}`}>
+                      {m.order}. {m.name}
+                      <span className="ml-2 text-xs font-normal text-neutral-400">${m.paymentAmount.toLocaleString()}</span>
+                    </p>
+                    <p className="text-xs text-neutral-400">
+                      {m.status === "paid" && date ? `Paid ${new Date(date).toLocaleDateString()}` : m.status.replace(/_/g, " ")}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Project Progress & Payment Status (shown after contract is signed) */}
       {projectContract?.status === "signed" && (
         <div className="mt-6 bg-white rounded-xl p-5 border border-neutral-200">
           <h6 className="mb-4 text-neutral-800">Project Progress</h6>
@@ -951,28 +1114,33 @@ const Project = () => {
               {(() => {
                 const done = milestones.filter((m) => ["approved", "paid"].includes(m.status)).length;
                 const pct = Math.round((done / milestones.length) * 100);
+                const totalPaid = milestones.filter((m) => m.status === "paid").reduce((sum, m) => sum + m.paymentAmount, 0);
+                const totalAmount = milestones.reduce((sum, m) => sum + m.paymentAmount, 0);
                 return (
-                  <div>
-                    <div className="flex justify-between text-xs text-neutral-500 mb-1">
-                      <span>{done} of {milestones.length} milestones complete</span>
-                      <span>{pct}%</span>
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex justify-between text-xs text-neutral-500 mb-1">
+                        <span>{done} of {milestones.length} milestones complete</span>
+                        <span>{pct}%</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-neutral-200 overflow-hidden">
+                        <div className="h-full bg-green-500 transition-all duration-300" style={{ width: `${pct}%` }} />
+                      </div>
                     </div>
-                    <div className="h-2 rounded-full bg-neutral-200 overflow-hidden">
-                      <div className="h-full bg-green-500 transition-all duration-300" style={{ width: `${pct}%` }} />
+                    <div className="flex items-center gap-2 rounded-lg bg-neutral-50 px-3 py-2">
+                      <DollarSign size={14} className="text-neutral-400" />
+                      <span className="text-sm text-neutral-700">
+                        <span className="font-semibold text-green-600">${totalPaid.toLocaleString()}</span>
+                        {" "}paid of{" "}
+                        <span className="font-semibold">${totalAmount.toLocaleString()}</span>
+                        {" "}total
+                      </span>
                     </div>
                   </div>
                 );
               })()}
 
               {milestones.map((m) => {
-                const statusColors: Record<string, string> = {
-                  pending: "bg-neutral-100 text-neutral-600",
-                  in_progress: "bg-blue-100 text-blue-700",
-                  submitted: "bg-amber-100 text-amber-700",
-                  approved: "bg-green-100 text-green-700",
-                  paid: "bg-emerald-100 text-emerald-700",
-                  disputed: "bg-red-100 text-red-700",
-                };
                 const busy = updatingMilestoneId === m._id;
                 return (
                   <div key={m._id} className="rounded-xl border border-neutral-200 p-4">
@@ -980,14 +1148,16 @@ const Project = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-medium text-sm text-neutral-900">{m.order}. {m.name}</span>
-                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[m.status] ?? "bg-neutral-100 text-neutral-600"}`}>
+                          <Badge variant={milestoneStatusVariant(m.status)}>
                             {m.status.replace(/_/g, " ")}
-                          </span>
+                          </Badge>
                         </div>
                         {m.description && <p className="mt-1 text-xs text-neutral-500">{m.description}</p>}
                         <div className="mt-2 flex flex-wrap gap-3 text-xs text-neutral-400">
-                          <span>{m.percentOfTotal}% · ${m.paymentAmount.toLocaleString()}</span>
+                          <span className="font-medium text-neutral-600">${m.paymentAmount.toLocaleString()}</span>
+                          <span>{m.percentOfTotal}%</span>
                           {m.estimatedDurationDays && <span>{m.estimatedDurationDays} days</span>}
+                          {m.paidAt && <span className="text-green-600">Paid {new Date(m.paidAt).toLocaleDateString()}</span>}
                         </div>
                         {m.deliverables.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1">
@@ -1008,8 +1178,21 @@ const Project = () => {
                         </div>
                       )}
                       {m.status === "approved" && (
-                        <Button size="xs" variant="outline" disabled={busy} onClick={() => void handleMilestoneStatus(m._id, "paid")}>
-                          {busy ? "..." : "Mark Paid"}
+                        <Button size="xs" variant="outline" disabled={busy} onClick={async () => {
+                          try {
+                            setUpdatingMilestoneId(m._id);
+                            await paymentService.releaseMilestonePayment(m._id);
+                            toast.success("Payment released to contractor.");
+                            if (id) {
+                              await Promise.all([loadMilestones(id), loadEscrow(id)]);
+                            }
+                          } catch {
+                            toast.error("Failed to release payment.");
+                          } finally {
+                            setUpdatingMilestoneId(null);
+                          }
+                        }}>
+                          {busy ? "..." : "Release Payment"}
                         </Button>
                       )}
                     </div>
@@ -1027,7 +1210,7 @@ const Project = () => {
       <div className="mt-6 bg-white rounded-xl p-5 border border-neutral-200">
           <div className="flex items-center justify-between mb-4">
             <h6 className="text-neutral-800">Received Bids</h6>
-            {selectedBidIds.length >= 2 && (
+            {selectedBidIds.length >= 2 && !bids.some((b) => b.status === "accepted") && (
               <Button size="xs" variant="outline" onClick={() => setShowCompare(true)}>
                 Compare {selectedBidIds.length} Bids
               </Button>
@@ -1054,15 +1237,17 @@ const Project = () => {
                   key={bid._id}
                   className={`rounded-xl border p-4 transition-colors ${selectedBidIds.includes(bid._id) ? "border-primary-300 bg-primary-50/30" : "border-neutral-200"}`}
                 >
-                  <label className="flex items-center gap-2 mb-2 cursor-pointer w-fit">
-                    <input
-                      type="checkbox"
-                      checked={selectedBidIds.includes(bid._id)}
-                      onChange={() => toggleBidSelect(bid._id)}
-                      className="size-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
-                    />
-                    <span className="text-xs text-neutral-500">Compare</span>
-                  </label>
+                  {!bids.some((b) => b.status === "accepted") && (
+                    <label className="flex items-center gap-2 mb-2 cursor-pointer w-fit">
+                      <input
+                        type="checkbox"
+                        checked={selectedBidIds.includes(bid._id)}
+                        onChange={() => toggleBidSelect(bid._id)}
+                        className="size-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
+                      />
+                      <span className="text-xs text-neutral-500">Compare</span>
+                    </label>
+                  )}
                   <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                     <div>
                       <p className="font-semibold text-neutral-800">
@@ -1072,7 +1257,7 @@ const Project = () => {
                         Amount: ${bid.amount.toLocaleString()}
                       </p>
                     </div>
-                    <Badge variant="primary">{bid.status}</Badge>
+                    <Badge variant={bidStatusVariant(bid.status)}>{bid.status}</Badge>
                   </div>
 
                   <div className="mt-3 text-sm text-neutral-700 space-y-1">
@@ -1106,9 +1291,9 @@ const Project = () => {
                         size="xs"
                         variant="primary"
                         disabled={isBusy}
-                        onClick={() => void handleAcceptBid(bid._id)}
+                        onClick={() => setAcceptDialogBidId(bid._id)}
                       >
-                        {isBusy ? "Processing..." : "Accept"}
+                        Accept
                       </Button>
                       <Button
                         size="xs"
@@ -1155,7 +1340,7 @@ const Project = () => {
                   <div key={bid._id} className="rounded-xl border border-neutral-200 p-4 space-y-3">
                     <div>
                       <p className="font-semibold text-neutral-900 text-sm">{getContractorName(bid)}</p>
-                      <Badge variant="primary" className="mt-1">{bid.status}</Badge>
+                      <Badge variant={bidStatusVariant(bid.status)} className="mt-1">{bid.status}</Badge>
                     </div>
                     <div className="space-y-2 text-sm">
                       <div className="rounded-lg bg-primary-50 px-3 py-2 text-center">
@@ -1176,7 +1361,7 @@ const Project = () => {
                       </div>
                     </div>
                     {(bid.status === "submitted" || bid.status === "shortlisted") && project?.status === "bidding" && (
-                      <Button size="xs" variant="primary" className="w-full" disabled={Boolean(actingBidId)} onClick={() => void handleAcceptBid(bid._id)}>
+                      <Button size="xs" variant="primary" className="w-full" disabled={Boolean(actingBidId)} onClick={() => setAcceptDialogBidId(bid._id)}>
                         Accept This Bid
                       </Button>
                     )}
@@ -1324,6 +1509,43 @@ const Project = () => {
             {activeImageIndex + 1} / {images.length}
           </span>
         </div>
+      )}
+      <AlertDialog
+        open={Boolean(acceptDialogBidId)}
+        variant="info"
+        title="Accept Bid"
+        description="Are you sure you want to accept this bid? All other pending bids will be automatically rejected."
+        warningText="This action cannot be undone. The contractor will be notified and a contract will be created."
+        confirmLabel="Accept Bid"
+        loadingLabel="Accepting..."
+        isLoading={Boolean(actingBidId)}
+        onConfirm={() => {
+          if (acceptDialogBidId) void handleAcceptBid(acceptDialogBidId);
+        }}
+        onClose={() => setAcceptDialogBidId(null)}
+      />
+      <AlertDialog
+        open={showCancelDialog}
+        variant="danger"
+        title="Cancel Project"
+        description="Are you sure you want to cancel this project?"
+        warningText="This will cancel the project. Any pending bids and contracts will no longer be actionable."
+        confirmLabel="Cancel Project"
+        loadingLabel="Cancelling..."
+        isLoading={isCancelling}
+        onConfirm={() => void handleCancelProject()}
+        onClose={() => setShowCancelDialog(false)}
+      />
+      {showPaymentForm && id && (
+        <PaymentForm
+          projectId={id}
+          onSuccess={async () => {
+            setShowPaymentForm(false);
+            toast.success("Project funded successfully!");
+            if (id) await loadEscrow(id);
+          }}
+          onClose={() => setShowPaymentForm(false)}
+        />
       )}
     </div>
   );

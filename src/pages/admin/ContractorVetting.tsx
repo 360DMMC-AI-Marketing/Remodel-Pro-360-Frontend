@@ -187,7 +187,7 @@ const ContractorVetting = () => {
   }, [filter]);
 
   return (
-    <div>
+    <div className="p-6">
       {selected && (
         <ReviewDialog
           request={selected}

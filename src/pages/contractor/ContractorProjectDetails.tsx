@@ -32,13 +32,34 @@ const getBidProgress = (status: BidRecord["status"]) => {
   }
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  pending: "bg-neutral-100 text-neutral-600",
-  in_progress: "bg-blue-100 text-blue-700",
-  submitted: "bg-amber-100 text-amber-700",
-  approved: "bg-green-100 text-green-700",
-  paid: "bg-emerald-100 text-emerald-700",
-  disputed: "bg-red-100 text-red-700",
+type BadgeVariant = "primary" | "success" | "warning" | "error" | "draft";
+
+const projectStatusVariant = (status?: string): BadgeVariant => {
+  switch (status) {
+    case "in_progress": return "warning";
+    case "completed": return "success";
+    case "cancelled": return "error";
+    case "draft": return "draft";
+    default: return "primary";
+  }
+};
+
+const milestoneStatusVariant = (status?: string): BadgeVariant => {
+  switch (status) {
+    case "in_progress": return "primary";
+    case "submitted": return "warning";
+    case "approved": case "paid": return "success";
+    case "disputed": return "error";
+    default: return "draft";
+  }
+};
+
+const contractStatusVariant = (status?: string): BadgeVariant => {
+  switch (status) {
+    case "pending_signatures": return "warning";
+    case "signed": return "success";
+    default: return "draft";
+  }
 };
 
 // ─── Milestone Templates ───────────────────────────────────────────────────────
@@ -366,9 +387,9 @@ const MilestoneStatusManager = ({ milestones, onUpdated }: MilestoneStatusManage
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-sm text-neutral-900">{m.order}. {m.name}</span>
-                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[m.status] ?? "bg-neutral-100 text-neutral-600"}`}>
+                    <Badge variant={milestoneStatusVariant(m.status)}>
                       {m.status.replace(/_/g, " ")}
-                    </span>
+                    </Badge>
                   </div>
                   {m.description && <p className="mt-1 text-xs text-neutral-500 line-clamp-2">{m.description}</p>}
                   <div className="mt-2 flex flex-wrap gap-3 text-xs text-neutral-400">
@@ -498,7 +519,7 @@ const ContractorProjectDetails = () => {
     : "Not specified";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <Link to="/contractor/projects">
         <Button variant="ghost" size="sm" className="flex items-center gap-2">
           <ArrowLeft className="size-4" /> Back to Projects
@@ -559,7 +580,7 @@ const ContractorProjectDetails = () => {
           <p className="text-sm text-neutral-600">No contract found for this project yet.</p>
         ) : (
           <div className="space-y-2">
-            <p className="text-sm text-neutral-700">Status: <span className="font-semibold capitalize">{projectContract.status.split("_").join(" ")}</span></p>
+            <p className="text-sm text-neutral-700">Status: <Badge variant={contractStatusVariant(projectContract.status)}>{projectContract.status.split("_").join(" ")}</Badge></p>
             <p className="text-sm text-neutral-700">Homeowner signed: {hasHomeownerSigned ? "Yes" : "No"}</p>
             <p className="text-sm text-neutral-700">Contractor signed: {hasContractorSigned ? "Yes" : "No"}</p>
             <p className="text-sm text-neutral-700">Start date: {projectContract.startDate ? new Date(projectContract.startDate).toLocaleDateString() : "Not set"}</p>
@@ -605,7 +626,7 @@ const ContractorProjectDetails = () => {
           <Card className="space-y-4 mt-10">
             <div className="flex items-center gap-3">
               <h4>{project?.title}</h4>
-              <Badge variant="primary">{project?.status ?? "bidding"}</Badge>
+              <Badge variant={projectStatusVariant(project?.status)}>{(project?.status ?? "bidding").replace(/_/g, " ")}</Badge>
             </div>
             <p className="text-neutral-700">{project?.description || "No description provided."}</p>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">

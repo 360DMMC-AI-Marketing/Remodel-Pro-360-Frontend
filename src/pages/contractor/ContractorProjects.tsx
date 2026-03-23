@@ -239,7 +239,7 @@ const ContractorProjects = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div>
         <h3>Projects</h3>
         <p className="text-neutral-500">

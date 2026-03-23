@@ -1,16 +1,18 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
-import { AlertTriangle, X } from "lucide-react";
+import { AlertTriangle, Info, X } from "lucide-react";
 import { Button } from "@/components/atoms/Button";
 
 interface AlertDialogProps {
   open: boolean;
   title: string;
   description: string;
+  variant?: "danger" | "info";
   warningText?: string;
   confirmLabel?: string;
   cancelLabel?: string;
   isLoading?: boolean;
+  loadingLabel?: string;
   onConfirm: () => void | Promise<void>;
   onClose: () => void;
 }
@@ -19,13 +21,21 @@ export const AlertDialog = ({
   open,
   title,
   description,
+  variant = "danger",
   warningText = "This action cannot be undone.",
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   isLoading = false,
+  loadingLabel,
   onConfirm,
   onClose,
 }: AlertDialogProps) => {
+  const isDanger = variant === "danger";
+  const iconColor = isDanger ? "bg-error/10 text-error" : "bg-primary-100 text-primary-600";
+  const bannerColor = isDanger
+    ? "border-error/15 bg-error/5"
+    : "border-primary-200 bg-primary-50";
+  const confirmVariant = isDanger ? "danger" : "primary";
   useEffect(() => {
     if (!open) return;
 
@@ -64,8 +74,8 @@ export const AlertDialog = ({
 
         <div className="flex items-start justify-between gap-4 px-6 pb-2 pt-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center shrink-0 rounded-full bg-error/10 text-error shadow-sm">
-              <AlertTriangle className="h-6 w-6" />
+            <div className={`flex h-12 w-12 items-center justify-center shrink-0 rounded-full shadow-sm ${iconColor}`}>
+              {isDanger ? <AlertTriangle className="h-6 w-6" /> : <Info className="h-6 w-6" />}
             </div>
             <div>
               <h4 className="text-xl font-semibold text-foreground">{title}</h4>
@@ -87,7 +97,7 @@ export const AlertDialog = ({
         </div>
 
         <div className="px-6 pb-6 pt-4">
-          <div className="rounded-2xl border border-error/15 bg-error/5 p-4 text-sm text-neutral-700">
+          <div className={`rounded-2xl border p-4 text-sm text-neutral-700 ${bannerColor}`}>
             {warningText}
           </div>
 
@@ -103,12 +113,12 @@ export const AlertDialog = ({
             </Button>
             <Button
               type="button"
-              variant="danger"
+              variant={confirmVariant}
               size="sm"
               onClick={onConfirm}
               disabled={isLoading}
             >
-              {isLoading ? "Deleting..." : confirmLabel}
+              {isLoading ? (loadingLabel ?? "Processing...") : confirmLabel}
             </Button>
           </div>
         </div>

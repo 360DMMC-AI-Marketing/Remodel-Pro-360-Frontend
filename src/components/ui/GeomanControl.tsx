@@ -169,7 +169,12 @@ const GeomanControl = ({ value, onPolygonComplete }: GeomanControlProps) => {
     }
 
     if (!activeLayerRef.current) {
-      const layer = L.polygon(latLngRing).addTo(map);
+      const layer = L.polygon(latLngRing, {
+        color: "#4f46e5",
+        fillColor: "#6366f1",
+        fillOpacity: 0.2,
+        weight: 2,
+      }).addTo(map);
       activeLayerRef.current = layer;
       map.fitBounds(layer.getBounds(), { padding: [20, 20] });
       return;

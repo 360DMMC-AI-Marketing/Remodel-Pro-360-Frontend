@@ -84,4 +84,12 @@ export const messageService = {
     const response = await api.delete(`/messages/${messageId}`);
     return response.data as { success: boolean; messageId: string };
   },
+
+  /**
+   * Get unread message counts per project + total
+   */
+  async getUnreadCounts(): Promise<{ counts: { projectId: string; count: number }[]; total: number }> {
+    const response = await api.get("/messages/unread-counts");
+    return response.data.data;
+  },
 };
