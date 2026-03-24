@@ -129,6 +129,11 @@ export const authService = {
     return response.data as PaperworkUploadResponse;
   },
 
+  googleLogin: async (idToken: string) => {
+    const response = await api.post('/auth/google', { idToken });
+    return response.data;
+  },
+
   getContractors: async () => {
     const response = await api.get('/auth/contractors');
     return response.data.contractors as User[];

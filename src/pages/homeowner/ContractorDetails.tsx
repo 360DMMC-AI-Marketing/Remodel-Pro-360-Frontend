@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ChevronLeft,
+  ChevronRight,
   Star,
   Briefcase,
   MapPin,
@@ -9,6 +10,7 @@ import {
   Tag,
   ImageOff,
   MessageSquare,
+  X,
 } from "lucide-react";
 import { MapContainer, TileLayer, Polygon, useMap } from "react-leaflet";
 import type { LatLngTuple } from "leaflet";
@@ -20,6 +22,7 @@ import { Skeleton } from "@/components/atoms/Skeleton";
 import { contractorsService, type ContractorProfile } from "@/api/contractors";
 import { reviewService, type Review } from "@/api/review";
 import { portfolioService, type PortfolioItem } from "@/api/portfolio";
+import { getImageUrl } from "@/lib/utils";
 
 const BASE_IMAGE_URL = "https://rp360-uploads.s3.us-east-1.amazonaws.com/";
 
@@ -121,7 +124,8 @@ const ContractorDetails = () => {
   const [averageRating, setAverageRating] = useState(0);
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   useEffect(() => {
     if (!id) return;
@@ -183,7 +187,7 @@ const ContractorDetails = () => {
           {/* Avatar */}
           {avatar ? (
             <img
-              src={`${BASE_IMAGE_URL}${avatar}`}
+              src={getImageUrl(avatar)}
               alt={fullName}
               className="size-24 shrink-0 rounded-full object-cover"
             />
@@ -292,11 +296,14 @@ const ContractorDetails = () => {
                       <button
                         key={idx}
                         type="button"
-                        onClick={() => setPreviewImage(`${BASE_IMAGE_URL}${img}`)}
+                        onClick={() => {
+                          setLightboxImages(item.images.map((i) => getImageUrl(i)));
+                          setLightboxIndex(idx);
+                        }}
                         className="relative aspect-square overflow-hidden"
                       >
                         <img
-                          src={`${BASE_IMAGE_URL}${img}`}
+                          src={getImageUrl(img)}
                           alt={`Portfolio image ${idx + 1}`}
                           className="size-full object-cover transition-transform hover:scale-105"
                         />
@@ -316,9 +323,14 @@ const ContractorDetails = () => {
 
                 {/* Text */}
                 <div className="p-4">
-                  <p className="text-sm text-neutral-700 leading-relaxed">
-                    {item.description}
-                  </p>
+                  {item.title && (
+                    <h6 className="text-sm font-semibold text-neutral-800 mb-1">{item.title}</h6>
+                  )}
+                  {item.description && (
+                    <p className="text-sm text-neutral-700 leading-relaxed">
+                      {item.description}
+                    </p>
+                  )}
                   {item.tags && item.tags.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-1.5">
                       {item.tags.map((tag) => (
@@ -367,7 +379,7 @@ const ContractorDetails = () => {
                   {/* Author avatar */}
                   {typeof review.homeownerId !== "string" && review.homeownerId?.avatar ? (
                     <img
-                      src={`${BASE_IMAGE_URL}${review.homeownerId.avatar}`}
+                      src={getImageUrl(review.homeownerId.avatar)}
                       alt={getAuthorName(review.homeownerId)}
                       className="size-9 shrink-0 rounded-full object-cover"
                     />
@@ -404,20 +416,73 @@ const ContractorDetails = () => {
         )}
       </section>
 
-      {/* Image preview lightbox */}
-      {previewImage && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
-          onClick={() => setPreviewImage(null)}
-        >
-          <img
-            src={previewImage}
-            alt="Preview"
-            className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-      )}
+      {/* Image gallery lightbox */}
+      {lightboxImages.length > 0 && (() => {
+        // Lock body scroll
+        document.body.style.overflow = "hidden";
+        const close = () => {
+          setLightboxImages([]);
+          setLightboxIndex(0);
+          document.body.style.overflow = "";
+        };
+        return (
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+            onClick={close}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") close();
+              if (e.key === "ArrowRight") setLightboxIndex((i) => Math.min(i + 1, lightboxImages.length - 1));
+              if (e.key === "ArrowLeft") setLightboxIndex((i) => Math.max(i - 1, 0));
+            }}
+            tabIndex={0}
+            ref={(el) => el?.focus()}
+          >
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={close}
+              className="absolute top-4 right-4 rounded-full bg-black/50 p-2 text-white hover:bg-black/70 transition-colors z-10"
+            >
+              <X size={20} />
+            </button>
+
+            {/* Counter */}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-sm text-white z-10">
+              {lightboxIndex + 1} / {lightboxImages.length}
+            </div>
+
+            {/* Previous */}
+            {lightboxIndex > 0 && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setLightboxIndex((i) => i - 1); }}
+                className="absolute left-4 rounded-full bg-black/50 p-2 text-white hover:bg-black/70 transition-colors z-10"
+              >
+                <ChevronLeft size={24} />
+              </button>
+            )}
+
+            {/* Next */}
+            {lightboxIndex < lightboxImages.length - 1 && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setLightboxIndex((i) => i + 1); }}
+                className="absolute right-4 rounded-full bg-black/50 p-2 text-white hover:bg-black/70 transition-colors z-10"
+              >
+                <ChevronRight size={24} />
+              </button>
+            )}
+
+            {/* Image */}
+            <img
+              src={lightboxImages[lightboxIndex]}
+              alt={`Image ${lightboxIndex + 1}`}
+              className="max-h-[85vh] max-w-[90vw] rounded-lg object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        );
+      })()}
     </div>
   );
 };

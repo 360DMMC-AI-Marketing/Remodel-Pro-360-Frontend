@@ -12,6 +12,7 @@ import {
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { CheckCircle, XCircle, AlertCircle, FileText, Eye } from "lucide-react";
+import { getImageUrl } from "@/lib/utils";
 
 const BASE_IMAGE_URL = "https://rp360-uploads.s3.us-east-1.amazonaws.com/";
 
@@ -255,7 +256,7 @@ const ContractorVetting = () => {
                       <div className="flex items-center gap-3">
                         {c.avatar ? (
                           <img
-                            src={BASE_IMAGE_URL + c.avatar}
+                            src={getImageUrl(c.avatar)}
                             alt={`${c.firstName} ${c.lastName}`}
                             className="w-10 h-10 rounded-full object-cover shrink-0"
                           />

@@ -12,6 +12,7 @@ import { useAuth } from "@/stores/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Spinner } from "@/components/atoms/Spinner";
 import { toast } from "sonner";
+import { GoogleLogin } from "@react-oauth/google";
 import logo from "@/assets/logo-transparent.png";
 
 const Register = () => {
@@ -39,7 +40,7 @@ const Register = () => {
   type role = "homeowner" | "contractor";
   const selectedRole = watch("role");
 
-  const { signup, isLoading } = useAuth();
+  const { signup, googleLogin, isLoading } = useAuth();
 
   const onSubmit = async (data: RegisterFormValues) => {
     try {
@@ -273,6 +274,28 @@ const Register = () => {
             >
               {isLoading ? <Spinner size="sm" /> : "Create Account"}
             </Button>
+
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-neutral-200" />
+              <span className="text-xs text-neutral-400">or</span>
+              <div className="flex-1 h-px bg-neutral-200" />
+            </div>
+
+            <GoogleLogin
+              onSuccess={(credentialResponse) => {
+                if (credentialResponse.credential) {
+                  googleLogin(credentialResponse.credential)
+                    .then((res) => navigate(`/${res?.user.role}/dashboard`))
+                    .catch(() => toast.error("Google sign-up failed"));
+                }
+              }}
+              onError={() => toast.error("Google sign-up failed")}
+              size="large"
+              width="100%"
+              text="signup_with"
+              shape="rectangular"
+            />
+
             <p className="text-sm text-neutral-500">
               Already have an account?{" "}
               <NavLink to="/login" className="text-primary-500 hover:underline">

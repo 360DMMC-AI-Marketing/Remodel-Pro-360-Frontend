@@ -24,6 +24,9 @@ import { contractorService } from "@/api/contractor";
 import type { VettingRequestData } from "@/api/contractor";
 import { connectService, type ContractorConnectStatus } from "@/api/connect";
 import MyMap from "@/components/ui/MyMap";
+import { getImageUrl } from "@/lib/utils";
+import { portfolioService, type PortfolioItem } from "@/api/portfolio";
+import { ImagePlus, Trash2 } from "lucide-react";
 
 interface UploadedDoc {
   id: string;
@@ -103,6 +106,97 @@ const ContractorProfile = () => {
   const [isOpeningConnectDashboard, setIsOpeningConnectDashboard] =
     useState(false);
 
+  // Portfolio state
+  const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
+  const [loadingPortfolio, setLoadingPortfolio] = useState(true);
+  const [showAddPortfolio, setShowAddPortfolio] = useState(false);
+  const [portfolioForm, setPortfolioForm] = useState({ title: "", description: "" });
+  const [portfolioTags, setPortfolioTags] = useState<string[]>([]);
+  const [portfolioTagInput, setPortfolioTagInput] = useState("");
+  const [portfolioImages, setPortfolioImages] = useState<File[]>([]);
+  const [portfolioPreviews, setPortfolioPreviews] = useState<string[]>([]);
+  const [isSavingPortfolio, setIsSavingPortfolio] = useState(false);
+  const [deletingPortfolioId, setDeletingPortfolioId] = useState<string | null>(null);
+  const portfolioFileRef = useRef<HTMLInputElement>(null);
+
+  const loadPortfolio = async () => {
+    try {
+      setLoadingPortfolio(true);
+      const items = await portfolioService.getMyPortfolio();
+      setPortfolio(items);
+    } catch {
+      // ignore
+    } finally {
+      setLoadingPortfolio(false);
+    }
+  };
+
+  const handlePortfolioImages = (files: FileList | null) => {
+    if (!files) return;
+    const newFiles = Array.from(files).slice(0, 6 - portfolioImages.length);
+    setPortfolioImages((prev) => [...prev, ...newFiles]);
+    setPortfolioPreviews((prev) => [
+      ...prev,
+      ...newFiles.map((f) => URL.createObjectURL(f)),
+    ]);
+  };
+
+  const removePortfolioImage = (index: number) => {
+    URL.revokeObjectURL(portfolioPreviews[index]);
+    setPortfolioImages((prev) => prev.filter((_, i) => i !== index));
+    setPortfolioPreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const resetPortfolioForm = () => {
+    setPortfolioForm({ title: "", description: "" });
+    setPortfolioTags([]);
+    setPortfolioTagInput("");
+    portfolioPreviews.forEach((url) => URL.revokeObjectURL(url));
+    setPortfolioImages([]);
+    setPortfolioPreviews([]);
+    setShowAddPortfolio(false);
+  };
+
+  const handleSavePortfolioItem = async () => {
+    if (!portfolioForm.title.trim()) {
+      toast.error("Title is required");
+      return;
+    }
+    if (portfolioImages.length === 0) {
+      toast.error("At least one image is required");
+      return;
+    }
+    try {
+      setIsSavingPortfolio(true);
+      const item = await portfolioService.create({
+        title: portfolioForm.title,
+        description: portfolioForm.description,
+        tags: portfolioTags,
+        images: portfolioImages,
+      });
+      setPortfolio((prev) => [item, ...prev]);
+      resetPortfolioForm();
+      toast.success("Portfolio item added");
+    } catch {
+      toast.error("Failed to add portfolio item");
+    } finally {
+      setIsSavingPortfolio(false);
+    }
+  };
+
+  const handleDeletePortfolioItem = async (id: string) => {
+    try {
+      setDeletingPortfolioId(id);
+      await portfolioService.delete(id);
+      setPortfolio((prev) => prev.filter((p) => p._id !== id));
+      toast.success("Portfolio item deleted");
+    } catch {
+      toast.error("Failed to delete portfolio item");
+    } finally {
+      setDeletingPortfolioId(null);
+    }
+  };
+
   const loadConnectStatus = async () => {
     try {
       setIsLoadingConnectStatus(true);
@@ -175,6 +269,7 @@ const ContractorProfile = () => {
 
   useEffect(() => {
     void loadConnectStatus();
+    void loadPortfolio();
   }, []);
 
   useEffect(() => {
@@ -330,10 +425,9 @@ const ContractorProfile = () => {
     }
   };
 
-  const BASE_IMAGE_URL = "https://rp360-uploads.s3.us-east-1.amazonaws.com/";
 
   return (
-    <div>
+    <div className="p-6">
       <AlertDialog
         open={isDeleteAvatarDialogOpen}
         title="Delete profile picture?"
@@ -364,7 +458,7 @@ const ContractorProfile = () => {
           <div className="relative size-24 bg-linear-to-br from-primary-500 to-primary-700 rounded-full">
             {user?.avatar ? (
               <img
-                src={BASE_IMAGE_URL + user.avatar}
+                src={getImageUrl(user.avatar)}
                 alt="Profile Picture"
                 className="size-full object-cover rounded-full"
               />
@@ -669,6 +763,159 @@ const ContractorProfile = () => {
                     : "Start Stripe Onboarding"}
               </Button>
             </div>
+          </div>
+        )}
+      </Card>
+
+      {/* ─── Portfolio ──────────────────────────────────────────────── */}
+      <Card className="mt-10 max-w-2xl mx-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h6 className="font-medium flex items-center gap-2">
+            <ImagePlus className="text-primary-500" size={18} />
+            Portfolio
+          </h6>
+          {!showAddPortfolio && (
+            <Button variant="primary" size="xs" onClick={() => setShowAddPortfolio(true)}>
+              Add Project
+            </Button>
+          )}
+        </div>
+
+        {showAddPortfolio && (
+          <div className="rounded-xl border border-neutral-200 p-4 mb-4 space-y-3">
+            <Input
+              placeholder="Project title"
+              value={portfolioForm.title}
+              onChange={(e) => setPortfolioForm({ ...portfolioForm, title: e.target.value })}
+            />
+            <Textarea
+              placeholder="Description (optional)"
+              rows={2}
+              value={portfolioForm.description}
+              onChange={(e) => setPortfolioForm({ ...portfolioForm, description: e.target.value })}
+            />
+
+            {/* Tags */}
+            <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-neutral-300 px-2.5 py-1.5 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 transition-colors">
+              {portfolioTags.map((tag) => (
+                <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-primary-100 text-primary-700 px-2.5 py-0.5 text-xs font-medium">
+                  {tag}
+                  <button type="button" onClick={() => setPortfolioTags((t) => t.filter((x) => x !== tag))} className="hover:text-primary-900">
+                    <X size={12} />
+                  </button>
+                </span>
+              ))}
+              <input
+                className="flex-1 min-w-[80px] bg-transparent outline-none text-sm py-1"
+                placeholder="Add tag + Enter"
+                value={portfolioTagInput}
+                onChange={(e) => setPortfolioTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && portfolioTagInput.trim()) {
+                    e.preventDefault();
+                    const val = portfolioTagInput.trim();
+                    if (!portfolioTags.includes(val)) setPortfolioTags((t) => [...t, val]);
+                    setPortfolioTagInput("");
+                  }
+                  if (e.key === "Backspace" && !portfolioTagInput && portfolioTags.length > 0) {
+                    setPortfolioTags((t) => t.slice(0, -1));
+                  }
+                }}
+              />
+            </div>
+
+            {/* Image upload */}
+            <input
+              ref={portfolioFileRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => handlePortfolioImages(e.target.files)}
+            />
+            <button
+              type="button"
+              onClick={() => portfolioFileRef.current?.click()}
+              className="flex w-full flex-col items-center gap-1 cursor-pointer rounded-xl border-2 border-dashed border-neutral-300 p-4 text-center hover:border-primary-500/50 hover:bg-primary-50/30 transition-colors"
+            >
+              <Upload className="h-6 w-6 text-neutral-400" />
+              <p className="text-sm text-neutral-600">Click to upload images (max 6)</p>
+            </button>
+
+            {portfolioPreviews.length > 0 && (
+              <div className="grid grid-cols-3 gap-2">
+                {portfolioPreviews.map((url, i) => (
+                  <div key={i} className="relative group rounded-lg overflow-hidden aspect-square">
+                    <img src={url} alt="" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removePortfolioImage(i)}
+                      className="absolute top-1 right-1 rounded-full bg-black/60 p-1 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" size="xs" onClick={resetPortfolioForm} disabled={isSavingPortfolio}>
+                Cancel
+              </Button>
+              <Button variant="primary" size="xs" onClick={() => void handleSavePortfolioItem()} disabled={isSavingPortfolio}>
+                {isSavingPortfolio ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {loadingPortfolio ? (
+          <p className="text-sm text-neutral-500">Loading portfolio...</p>
+        ) : portfolio.length === 0 && !showAddPortfolio ? (
+          <p className="text-sm text-neutral-500">No portfolio items yet. Add your first project to showcase your work.</p>
+        ) : (
+          <div className="space-y-4">
+            {portfolio.map((item) => (
+              <div key={item._id} className="rounded-xl border border-neutral-200 p-4">
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div>
+                    <h6 className="font-medium text-sm">{item.title}</h6>
+                    {item.description && (
+                      <p className="text-sm text-neutral-500 mt-0.5">{item.description}</p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void handleDeletePortfolioItem(item._id)}
+                    disabled={deletingPortfolioId === item._id}
+                    className="shrink-0 rounded-full p-1.5 text-neutral-400 hover:bg-red-50 hover:text-red-500 transition-colors disabled:opacity-50"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+
+                {item.images.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2 mb-2">
+                    {item.images.map((img, i) => (
+                      <div key={i} className="rounded-lg overflow-hidden aspect-square">
+                        <img src={getImageUrl(img)} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {item.tags && item.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {item.tags.map((tag) => (
+                      <span key={tag} className="rounded-full bg-neutral-100 text-neutral-600 px-2.5 py-0.5 text-xs">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </Card>

@@ -20,6 +20,7 @@ import {
   contractorsService,
   type ContractorProfile,
 } from "@/api/contractors";
+import { getImageUrl } from "@/lib/utils";
 
 const SPECIALTIES = [
   "Plumbing",
@@ -45,8 +46,6 @@ const EXPERIENCE_OPTIONS = [
 ];
 
 const PAGE_SIZE = 12;
-
-const BASE_IMAGE_URL = "https://rp360-uploads.s3.us-east-1.amazonaws.com/";
 
 const FindContractors = () => {
   const [contractors, setContractors] = useState<ContractorProfile[]>([]);
@@ -327,7 +326,7 @@ const ContractorCard = ({ contractor }: { contractor: ContractorProfile }) => {
         {/* Avatar */}
         {avatar ? (
           <img
-            src={`${BASE_IMAGE_URL}${avatar}`}
+            src={getImageUrl(avatar)}
             alt={fullName}
             className="size-14 shrink-0 rounded-full object-cover"
           />

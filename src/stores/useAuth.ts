@@ -15,6 +15,7 @@ interface AuthState {
 
   // Actions
   login: (data: LoginFormValues) => Promise<UserResponse>;
+  googleLogin: (idToken: string) => Promise<UserResponse>;
   signup: (data: RegisterFormValues) => Promise<void>;
   verifyEmail: (token: string) => Promise<UserResponse>;
   // resendVerificationEmail: () => Promise<void>;
@@ -60,6 +61,25 @@ export const useAuth = create<AuthState>()(
         try {
           const response = await authService.login(data);
           console.log(response)
+          set({
+            user: response.user,
+            token: response.tokens.accessToken,
+            refreshToken: response.tokens.refreshToken,
+            role: response.user.role,
+            isAuthenticated: true,
+            isLoading: false,
+          });
+          return response;
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      googleLogin: async (idToken: string) => {
+        set({ isLoading: true });
+        try {
+          const response = await authService.googleLogin(idToken);
           set({
             user: response.user,
             token: response.tokens.accessToken,

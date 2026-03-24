@@ -5,13 +5,13 @@ import { Menu, X, LogOut } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/stores/useAuth";
 import { Avatar } from "../atoms/Avatar";
+import { getImageUrl } from "@/lib/utils";
 import logo from "@/assets/logo-transparent.png";
-
-const BASE_IMAGE_URL = "https://rp360-uploads.s3.us-east-1.amazonaws.com/";
 
 const Header = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { logout, isAuthenticated, user } = useAuth();
+  console.log(user)
   return (
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-b-neutral-200 h-header">
       <Container className="h-full flex items-center justify-between">
@@ -40,7 +40,7 @@ const Header = () => {
                   <Link to={`/${user?.role}/dashboard`}>
                     {user?.avatar ? (
                       <Avatar
-                        src={`${BASE_IMAGE_URL}${user.avatar}`}
+                        src={getImageUrl(user.avatar)}
                         size={48}
                         className="text-primary-700"
                       />

@@ -9,12 +9,13 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/stores/useAuth";
 import { Spinner } from "@/components/atoms/Spinner";
 import { toast } from "sonner";
+import { GoogleLogin } from "@react-oauth/google";
 import logo from "@/assets/logo-transparent.png"
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
-  const { login, isLoading } = useAuth();
+  const { login, googleLogin, isLoading } = useAuth();
   const {
     register,
     handleSubmit,
@@ -127,6 +128,28 @@ const Login = () => {
             >
               {isLoading ? <Spinner size="sm" /> : "Login"}
             </Button>
+
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-neutral-200" />
+              <span className="text-xs text-neutral-400">or</span>
+              <div className="flex-1 h-px bg-neutral-200" />
+            </div>
+
+            <GoogleLogin
+              onSuccess={(credentialResponse) => {
+              if (credentialResponse.credential) {
+                googleLogin(credentialResponse.credential)
+                .then((res) => navigate(`/${res?.user.role}/dashboard`))
+                .catch(() => toast.error("Google sign-in failed"));
+              }
+              }}
+              onError={() => toast.error("Google sign-in failed")}
+              size="large"
+              width="100%"
+              text="signin_with"
+              shape="rectangular"
+            />
+
             <p className="text-sm text-neutral-500">
               Don't have an account?{" "}
               <NavLink

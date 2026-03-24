@@ -12,6 +12,7 @@ export const Avatar: React.FC<AvatarProps> = ({ src, alt = 'Avatar', size = 64, 
   <img
     src={src}
     alt={alt}
+    referrerPolicy="no-referrer"
     className={clsx('contractor-card__avatar', className)}
     style={{ width: size, height: size }}
   />
