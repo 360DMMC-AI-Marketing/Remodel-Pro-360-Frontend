@@ -68,6 +68,7 @@ const ContractorProfile = () => {
     phone: "",
     city: "",
     state: "",
+    zipCode: "",
     yearsOfExperience: "",
     specialties: [] as string[],
   });
@@ -298,12 +299,12 @@ const ContractorProfile = () => {
       phone: user.phone ?? "",
       city: user.address?.city ?? "",
       state: user.address?.state ?? "",
+      zipCode: user.address?.zipCode ?? "",
       yearsOfExperience: user.contractor?.experienceYears
         ? String(user.contractor.experienceYears)
         : "",
       specialties: user.contractor?.specialties ?? [],
     });
-    console.log(user.contractor?.serviceArea);
     setServiceArea(user.contractor?.serviceArea ?? null);
   }, [user]);
 
@@ -410,6 +411,7 @@ const ContractorProfile = () => {
         address: {
           city: basicInfo.city.trim() || undefined,
           state: basicInfo.state.trim() || undefined,
+          zipCode: basicInfo.zipCode.trim() || undefined,
         },
         contractor: {
           companyName: basicInfo.companyName.trim() || undefined,
@@ -426,8 +428,13 @@ const ContractorProfile = () => {
   };
 
 
+  const avatarSrc = user?.avatar
+    ? (user.avatar.startsWith("http") ? user.avatar : getImageUrl(user.avatar))
+    : null;
+  const initials = (user?.firstName?.[0] ?? "") + (user?.lastName?.[0] ?? "");
+
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-6">
       <AlertDialog
         open={isDeleteAvatarDialogOpen}
         title="Delete profile picture?"
@@ -439,150 +446,149 @@ const ContractorProfile = () => {
         onConfirm={handleAvatarRemove}
         onClose={() => setIsDeleteAvatarDialogOpen(false)}
       />
-      <div className="flex flex-col gap-1">
-        <h3>Contractor Profile</h3>
-        <p className="text-neutral-500">
-          Manage your profile, license, and insurance documents.
-        </p>
-      </div>
-      <Card className="mt-10 max-w-2xl mx-auto">
-        <h6 className="font-semibold">Profile Picture</h6>
-        <input
-          ref={avatarRef}
-          type="file"
-          accept="image/png,image/jpeg,image/jpg,image/webp"
-          className="hidden"
-          onChange={handleAvatarChange}
-        />
-        <div className="flex items-start gap-4 mt-4">
-          <div className="relative size-24 bg-linear-to-br from-primary-500 to-primary-700 rounded-full">
-            {user?.avatar ? (
-              <img
-                src={getImageUrl(user.avatar)}
-                alt="Profile Picture"
-                className="size-full object-cover rounded-full"
-              />
-            ) : (
-              <div className="size-full flex items-center justify-center cursor-default">
-                <span className="text-2xl text-white font-medium">
-                  {user?.firstName?.[0]}
-                  {user?.lastName?.[0]}
-                </span>
-              </div>
-            )}
-            {user?.role === "contractor" && user?.contractor?.isVerified && (
-              <span className="absolute bottom-0 right-0 flex items-center justify-center rounded-full bg-white p-1 shadow-sm">
-                <BadgeCheck className="h-5 w-5 text-green-600" />
-              </span>
-            )}
-            {/* <div className="absolute inset-0 cursor-pointer bg-black/50 flex items-center justify-center rounded-full opacity-0 hover:opacity-100 transition-opacity">
-              <Camera className="size-8 text-white" />
-            </div> */}
+
+      <h2 className="text-lg font-semibold text-neutral-800">Contractor Profile</h2>
+
+      {/* Avatar section */}
+      <Card className="flex flex-col items-center gap-4 py-8">
+        <div className="relative group">
+          {avatarSrc ? (
+            <img
+              src={avatarSrc}
+              alt="Avatar"
+              referrerPolicy="no-referrer"
+              className="size-24 rounded-full object-cover ring-4 ring-primary-100"
+            />
+          ) : (
+            <div className="flex size-24 items-center justify-center rounded-full bg-primary-100 text-2xl font-bold text-primary-600 ring-4 ring-primary-50">
+              {initials || "?"}
+            </div>
+          )}
+          {user?.contractor?.isVerified && (
+            <span className="absolute bottom-0 right-0 flex items-center justify-center rounded-full bg-white p-1 shadow-sm">
+              <BadgeCheck className="h-5 w-5 text-green-600" />
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => avatarRef.current?.click()}
+            className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+          >
+            <Upload size={20} className="text-white" />
+          </button>
+          <input
+            ref={avatarRef}
+            type="file"
+            accept="image/png,image/jpeg,image/jpg,image/webp"
+            className="hidden"
+            onChange={handleAvatarChange}
+          />
+        </div>
+        <div className="text-center">
+          <p className="font-semibold text-neutral-800">{user?.firstName} {user?.lastName}</p>
+          <p className="text-sm text-neutral-500">{user?.email}</p>
+        </div>
+        {avatarSrc && (
+          <Button variant="ghost" size="xs" onClick={() => setIsDeleteAvatarDialogOpen(true)} disabled={isRemovingAvatar}>
+            {isRemovingAvatar ? "Removing..." : "Remove avatar"}
+          </Button>
+        )}
+      </Card>
+
+      {/* Basic Information */}
+      <Card>
+        <h3 className="text-sm font-semibold text-neutral-700 mb-4">Personal Information</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-medium text-neutral-500 mb-1 block">First Name</label>
+            <Input
+              placeholder="ex: John"
+              value={basicInfo.firstName}
+              onChange={(e) => setBasicInfo({ ...basicInfo, firstName: e.target.value })}
+            />
           </div>
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-col">
-              <span>
-                {user?.firstName} {user?.lastName}
-              </span>
-              <span className="text-sm text-neutral-500">{user?.email}</span>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="xs"
-                className="mt-2"
-                onClick={() => avatarRef.current?.click()}
-                disabled={isUploadingAvatar || isRemovingAvatar}
-              >
-                {isUploadingAvatar ? "Uploading..." : "Change Picture"}
-              </Button>
-              <Button
-                variant="danger"
-                size="xs"
-                className="mt-2"
-                onClick={() => setIsDeleteAvatarDialogOpen(true)}
-                disabled={
-                  !user?.avatar || isUploadingAvatar || isRemovingAvatar
-                }
-              >
-                {isRemovingAvatar ? "Removing..." : "Remove Picture"}
-              </Button>
-            </div>
+          <div>
+            <label className="text-xs font-medium text-neutral-500 mb-1 block">Last Name</label>
+            <Input
+              placeholder="ex: Doe"
+              value={basicInfo.lastName}
+              onChange={(e) => setBasicInfo({ ...basicInfo, lastName: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-neutral-500 mb-1 block">Phone</label>
+            <Input
+              placeholder="ex: +12125551234"
+              value={basicInfo.phone}
+              onChange={(e) => setBasicInfo({ ...basicInfo, phone: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-neutral-500 mb-1 block">Company Name</label>
+            <Input
+              value={basicInfo.companyName}
+              onChange={(e) => setBasicInfo({ ...basicInfo, companyName: e.target.value })}
+            />
+          </div>
+        </div>
+        <div className="mt-4">
+          <label className="text-xs font-medium text-neutral-500 mb-1 block">Email</label>
+          <Input value={user?.email ?? ""} disabled className="bg-neutral-50" />
+          <p className="text-[11px] text-neutral-400 mt-1">Email cannot be changed.</p>
+        </div>
+      </Card>
+
+      {/* Location */}
+      <Card>
+        <h3 className="text-sm font-semibold text-neutral-700 mb-4">Location</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-medium text-neutral-500 mb-1 block">City</label>
+            <Input
+              value={basicInfo.city}
+              onChange={(e) => setBasicInfo({ ...basicInfo, city: e.target.value })}
+              placeholder="City"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-neutral-500 mb-1 block">State</label>
+            <Input
+              value={basicInfo.state}
+              onChange={(e) => setBasicInfo({ ...basicInfo, state: e.target.value })}
+              placeholder="State"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-neutral-500 mb-1 block">ZIP Code</label>
+            <Input
+              value={basicInfo.zipCode}
+              onChange={(e) => setBasicInfo({ ...basicInfo, zipCode: e.target.value })}
+              placeholder="12345"
+            />
           </div>
         </div>
       </Card>
-      <Card className="mt-10 max-w-2xl mx-auto">
-        <h6 className="font-medium mb-3">Basic Information</h6>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex flex-col gap-2">
-            <label htmlFor="firstName">First Name</label>
-            <Input
-              id="firstName"
-              placeholder="ex: John"
-              value={basicInfo.firstName}
-              onChange={(e) =>
-                setBasicInfo({ ...basicInfo, firstName: e.target.value })
-              }
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label htmlFor="lastName">Last Name</label>
-            <Input
-              id="lastName"
-              placeholder="ex: Doe"
-              value={basicInfo.lastName}
-              onChange={(e) =>
-                setBasicInfo({ ...basicInfo, lastName: e.target.value })
-              }
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label htmlFor="phone">Phone</label>
-            <Input
-              id="phone"
-              placeholder="ex: +12125551234"
-              value={basicInfo.phone}
-              onChange={(e) =>
-                setBasicInfo({ ...basicInfo, phone: e.target.value })
-              }
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label htmlFor="companyName">Company Name</label>
-            <Input
-              id="companyName"
-              value={basicInfo.companyName}
-              onChange={(e) => {
-                setBasicInfo({ ...basicInfo, companyName: e.target.value})
-              }}
-            />
-          </div>
-          <div className="flex flex-col gap-2 col-span-1 md:col-span-2">
-            <label htmlFor="specialties">Specialties</label>
+
+      {/* Professional Details */}
+      <Card>
+        <h3 className="text-sm font-semibold text-neutral-700 mb-4">Professional Details</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-medium text-neutral-500 mb-1 block">Specialties</label>
             <div className="min-h-10 flex flex-wrap gap-1.5 rounded-lg border border-neutral-300 bg-white px-3 py-2 transition-colors focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 focus-within:ring-offset-0">
               {basicInfo.specialties.map((s) => (
-                <span
-                  key={s}
-                  className="inline-flex items-center gap-1 rounded-full bg-primary-100 px-2.5 py-0.5 text-sm font-medium text-primary-700"
-                >
+                <span key={s} className="inline-flex items-center gap-1 rounded-full bg-primary-100 px-2.5 py-0.5 text-sm font-medium text-primary-700">
                   {s}
                   <button
                     type="button"
-                    onClick={() =>
-                      setBasicInfo({
-                        ...basicInfo,
-                        specialties: basicInfo.specialties.filter((x) => x !== s),
-                      })
-                    }
+                    onClick={() => setBasicInfo({ ...basicInfo, specialties: basicInfo.specialties.filter((x) => x !== s) })}
                     className="ml-0.5 rounded-full hover:text-primary-900"
-                    aria-label={`Remove ${s}`}
                   >
                     <X size={12} />
                   </button>
                 </span>
               ))}
               <input
-                id="specialties"
                 value={specialtyInput}
                 onChange={(e) => setSpecialtyInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -590,21 +596,11 @@ const ContractorProfile = () => {
                     e.preventDefault();
                     const val = specialtyInput.trim();
                     if (val && !basicInfo.specialties.includes(val)) {
-                      setBasicInfo({
-                        ...basicInfo,
-                        specialties: [...basicInfo.specialties, val],
-                      });
+                      setBasicInfo({ ...basicInfo, specialties: [...basicInfo.specialties, val] });
                     }
                     setSpecialtyInput("");
-                  } else if (
-                    e.key === "Backspace" &&
-                    !specialtyInput &&
-                    basicInfo.specialties.length > 0
-                  ) {
-                    setBasicInfo({
-                      ...basicInfo,
-                      specialties: basicInfo.specialties.slice(0, -1),
-                    });
+                  } else if (e.key === "Backspace" && !specialtyInput && basicInfo.specialties.length > 0) {
+                    setBasicInfo({ ...basicInfo, specialties: basicInfo.specialties.slice(0, -1) });
                   }
                 }}
                 placeholder={basicInfo.specialties.length === 0 ? "Type and press Enter..." : ""}
@@ -612,49 +608,49 @@ const ContractorProfile = () => {
               />
             </div>
           </div>
-          <div className="flex flex-col gap-2 col-span-1 md:col-span-2">
-            <label htmlFor="years">Years of Experience</label>
+          <div>
+            <label className="text-xs font-medium text-neutral-500 mb-1 block">Years of Experience</label>
             <Input
-              id="years"
               type="number"
               min={0}
               value={basicInfo.yearsOfExperience}
-              onChange={(e) =>
-                setBasicInfo({ ...basicInfo, yearsOfExperience: e.target.value })
-              }
+              onChange={(e) => setBasicInfo({ ...basicInfo, yearsOfExperience: e.target.value })}
             />
           </div>
-          <div className="flex flex-col gap-2 col-span-1 md:col-span-2">
-            <label htmlFor="bio">Bio</label>
+          <div>
+            <label className="text-xs font-medium text-neutral-500 mb-1 block">Bio</label>
             <Textarea
-              id="bio"
               rows={4}
               maxLength={200}
               value={basicInfo.bio}
-              onChange={(e) =>
-                setBasicInfo({ ...basicInfo, bio: e.target.value })
-              }
+              onChange={(e) => setBasicInfo({ ...basicInfo, bio: e.target.value })}
             />
           </div>
         </div>
-        <div className="col-span-1 md:col-span-2 h-px bg-neutral-200 my-5" />
-        <h6 className="font-medium mb-3">Service Area</h6>
-        <MyMap value={serviceArea} onChange={setServiceArea} />
-        <div className="flex justify-end mt-4">
-          <Button variant="primary" size="sm" onClick={handleSaveBasicInfo}>
-            Save Changes
-          </Button>
-        </div>
       </Card>
 
-      <Card className="mt-10 max-w-2xl mx-auto">
+      {/* Service Area */}
+      <Card>
+        <h3 className="text-sm font-semibold text-neutral-700 mb-4">Service Area</h3>
+        <MyMap value={serviceArea} onChange={setServiceArea} />
+      </Card>
+
+      {/* Save button */}
+      <div className="flex justify-end">
+        <Button variant="primary" onClick={() => void handleSaveBasicInfo()} className="flex items-center gap-2">
+          <CheckCircle size={16} />
+          Save Changes
+        </Button>
+      </div>
+
+      <Card>
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <h6 className="font-medium mb-2 flex items-center gap-2">
-              <CreditCard className="text-primary-500" />
+            <h3 className="text-sm font-semibold text-neutral-700 flex items-center gap-2">
+              <CreditCard size={16} />
               Stripe Payout Onboarding
-            </h6>
-            <p className="text-sm text-muted-foreground">
+            </h3>
+            <p className="text-xs text-neutral-500 mt-1">
               Complete Stripe Express onboarding for KYC verification and payout
               routing to your bank account.
             </p>
@@ -767,13 +763,13 @@ const ContractorProfile = () => {
         )}
       </Card>
 
-      {/* ─── Portfolio ──────────────────────────────────────────────── */}
-      <Card className="mt-10 max-w-2xl mx-auto">
+      {/* Portfolio */}
+      <Card>
         <div className="flex items-center justify-between mb-4">
-          <h6 className="font-medium flex items-center gap-2">
-            <ImagePlus className="text-primary-500" size={18} />
+          <h3 className="text-sm font-semibold text-neutral-700 flex items-center gap-2">
+            <ImagePlus size={16} />
             Portfolio
-          </h6>
+          </h3>
           {!showAddPortfolio && (
             <Button variant="primary" size="xs" onClick={() => setShowAddPortfolio(true)}>
               Add Project
@@ -920,13 +916,13 @@ const ContractorProfile = () => {
         )}
       </Card>
 
-      <Card className="mt-10 max-w-2xl mx-auto">
+      <Card>
         <div className="mb-6">
-          <h6 className="font-medium mb-3 flex items-center gap-2">
-            <Shield className="text-primary-500" />
+          <h3 className="text-sm font-semibold text-neutral-700 flex items-center gap-2">
+            <Shield size={16} />
             License and Insurance Verification
-          </h6>
-          <p className="text-sm text-muted-foreground">
+          </h3>
+          <p className="text-xs text-neutral-500 mt-1">
             Submit your contractor license and proof of insurance for
             verification. Once submitted, your request will be reviewed by an
             admin. You will be notified of the outcome.

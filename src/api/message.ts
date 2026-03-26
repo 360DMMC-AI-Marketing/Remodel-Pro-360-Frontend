@@ -53,12 +53,17 @@ export const messageService = {
   async getProjectMessages(
     projectId: string,
     page: number = 1,
-    limit: number = 20
-  ): Promise<MessageRecord[]> {
+    limit: number = 30
+  ): Promise<{ messages: MessageRecord[]; total: number; page: number; totalPages: number }> {
     const response = await api.get(`/messages/project/${projectId}`, {
       params: { page, limit },
     });
-    return (response.data.messages ?? []) as MessageRecord[];
+    return {
+      messages: (response.data.messages ?? []) as MessageRecord[],
+      total: response.data.total ?? 0,
+      page: response.data.page ?? page,
+      totalPages: response.data.totalPages ?? 1,
+    };
   },
 
   /**

@@ -7,8 +7,9 @@ import { bidService, type HomeownerBid } from "@/api/bid";
 import { contractService, type ContractRecord } from "@/api/contract";
 import { milestoneService, type MilestoneRecord } from "@/api/milestone";
 import { paymentService, type EscrowStatus } from "@/api/payment";
+import { reviewService, type Review, type CategoryRatings } from "@/api/review";
 import { PaymentForm } from "@/components/PaymentForm";
-import { ArrowLeft, ChevronLeft, ChevronRight, DollarSign, Edit3, MessageSquare, MoreHorizontal, Save, Trash2, Upload, X } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, DollarSign, Edit3, MessageSquare, MoreHorizontal, Save, Star, Trash2, Upload, X } from "lucide-react";
 import { Button } from "@/components/atoms/Button";
 import { Badge } from "@/components/atoms/Badge";
 import { Skeleton } from "@/components/atoms/Skeleton";
@@ -16,6 +17,7 @@ import { Textarea } from "@/components/atoms/Textarea";
 import { toast } from "sonner";
 import { Input } from "@/components/atoms/Input";
 import { AlertDialog } from "@/components/ui/alert-dialog";
+import { getImageUrl } from "@/lib/utils";
 
 interface EditProjectForm {
   title: string;
@@ -110,6 +112,21 @@ const Project = () => {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [showCompare, setShowCompare] = useState(false);
+  const [review, setReview] = useState<Review | null>(null);
+  const [loadingReview, setLoadingReview] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewForm, setReviewForm] = useState<{ categoryRatings: CategoryRatings; comment: string }>({
+    categoryRatings: { quality: 0, communication: 0, timeliness: 0, budget: 0 },
+    comment: "",
+  });
+  const [submittingReview, setSubmittingReview] = useState(false);
+  // Proof image lightbox
+  const [proofLightbox, setProofLightbox] = useState<string[]>([]);
+  const [proofLightboxIdx, setProofLightboxIdx] = useState(0);
+  // Dispute dialog
+  const [disputeMilestoneId, setDisputeMilestoneId] = useState<string | null>(null);
+  const [disputeMessage, setDisputeMessage] = useState("");
+  const [isDisputing, setIsDisputing] = useState(false);
   const actionsMenuRef = useRef<HTMLDivElement | null>(null);
   const [editForm, setEditForm] = useState<EditProjectForm>({
     title: "",
@@ -200,13 +217,50 @@ const Project = () => {
     }
   };
 
+  const loadReview = async (projectId: string) => {
+    try {
+      setLoadingReview(true);
+      const data = await reviewService.getProjectReview(projectId);
+      setReview(data);
+    } catch {
+      // review may not exist yet
+    } finally {
+      setLoadingReview(false);
+    }
+  };
+
+  const handleSubmitReview = async () => {
+    if (!id) return;
+    const { quality, communication, timeliness, budget: budgetRating } = reviewForm.categoryRatings;
+    if (!quality || !communication || !timeliness || !budgetRating) {
+      toast.error("Please rate all categories.");
+      return;
+    }
+    try {
+      setSubmittingReview(true);
+      const created = await reviewService.createReview({
+        projectId: id,
+        categoryRatings: reviewForm.categoryRatings,
+        comment: reviewForm.comment || undefined,
+      });
+      setReview(created);
+      setShowReviewForm(false);
+      toast.success("Review submitted successfully!");
+    } catch (error) {
+      console.error("Failed to submit review:", error);
+      toast.error("Failed to submit review.");
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
   useEffect(() => {
     const fetchProject = async () => {
         setLoading(true);
       try {
         const data = await getProjectById(id!);
         setProject(data.project);
-        await Promise.all([loadBids(id!), loadContract(id!), loadMilestones(id!), loadEscrow(id!)]);
+        await Promise.all([loadBids(id!), loadContract(id!), loadMilestones(id!), loadEscrow(id!), loadReview(id!)]);
         setLoading(false);
       } catch (error) {
         console.error("Failed to load project:", error);
@@ -408,6 +462,26 @@ const Project = () => {
       toast.error("Failed to update milestone.");
     } finally {
       setUpdatingMilestoneId(null);
+    }
+  };
+
+  const handleDisputeMilestone = async () => {
+    if (!disputeMilestoneId || !disputeMessage.trim()) return;
+    try {
+      setIsDisputing(true);
+      const updated = await milestoneService.updateMilestoneStatus(
+        disputeMilestoneId,
+        "disputed",
+        { disputeReason: disputeMessage.trim() },
+      );
+      setMilestones((prev) => prev.map((m) => (m._id === updated._id ? updated : m)));
+      toast.success("Milestone disputed.");
+      setDisputeMilestoneId(null);
+      setDisputeMessage("");
+    } catch {
+      toast.error("Failed to dispute milestone.");
+    } finally {
+      setIsDisputing(false);
     }
   };
 
@@ -1166,13 +1240,33 @@ const Project = () => {
                             ))}
                           </div>
                         )}
+                        {m.proofImages && m.proofImages.length > 0 && (
+                          <div className="mt-3">
+                            <p className="text-xs font-medium text-neutral-600 mb-1">Proof Photos</p>
+                            <div className="flex flex-wrap gap-2">
+                              {m.proofImages.map((img, i) => (
+                                <button
+                                  key={i}
+                                  type="button"
+                                  onClick={() => {
+                                    setProofLightbox(m.proofImages!.map((p) => getImageUrl(p)));
+                                    setProofLightboxIdx(i);
+                                  }}
+                                  className="size-16 rounded-lg overflow-hidden border border-neutral-200 hover:ring-2 hover:ring-primary-400 transition-all"
+                                >
+                                  <img src={getImageUrl(img)} alt={`Proof ${i + 1}`} className="size-full object-cover" />
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                       {m.status === "submitted" && (
                         <div className="flex gap-2 shrink-0">
                           <Button size="xs" variant="primary" disabled={busy} onClick={() => void handleMilestoneStatus(m._id, "approved")}>
                             {busy ? "..." : "Approve"}
                           </Button>
-                          <Button size="xs" variant="danger" disabled={busy} onClick={() => void handleMilestoneStatus(m._id, "disputed")}>
+                          <Button size="xs" variant="danger" disabled={busy} onClick={() => { setDisputeMilestoneId(m._id); setDisputeMessage(""); }}>
                             Dispute
                           </Button>
                         </div>
@@ -1197,12 +1291,105 @@ const Project = () => {
                       )}
                     </div>
                     {m.status === "disputed" && (
-                      <p className="mt-2 text-xs text-red-500">You have disputed this milestone. The contractor has been notified and must restart the work.</p>
+                      <div className="mt-2 rounded-md bg-red-50 p-2.5 border border-red-100">
+                        <p className="text-xs font-medium text-red-600 mb-0.5">Disputed</p>
+                        {m.disputeReason && <p className="text-xs text-red-500">{m.disputeReason}</p>}
+                        <p className="text-[11px] text-red-400 mt-1">The contractor has been notified and must restart the work.</p>
+                      </div>
                     )}
                   </div>
                 );
               })}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Review Section */}
+      {projectContract?.status === "signed" && (
+        <div className="mt-6 bg-white rounded-xl p-5 border border-neutral-200">
+          <h6 className="mb-4 text-neutral-800">Leave a Review</h6>
+          {loadingReview ? (
+            <Skeleton variant="text" className="w-full h-20" />
+          ) : review ? (
+            <div className="space-y-3">
+              {(["quality", "communication", "timeliness", "budget"] as const).map((cat) => (
+                <div key={cat} className="flex items-center gap-3">
+                  <span className="w-32 text-sm font-medium capitalize text-neutral-700">{cat}</span>
+                  <div className="flex gap-0.5">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star
+                        key={s}
+                        size={18}
+                        className={s <= (review.categoryRatings as CategoryRatings)[cat] ? "fill-amber-400 text-amber-400" : "text-neutral-300"}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <div className="flex items-center gap-3 pt-2 border-t border-neutral-100">
+                <span className="w-32 text-sm font-semibold text-neutral-800">Overall</span>
+                <div className="flex gap-0.5">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <Star
+                      key={s}
+                      size={18}
+                      className={s <= Math.round(review.rating ?? 0) ? "fill-amber-400 text-amber-400" : "text-neutral-300"}
+                    />
+                  ))}
+                </div>
+                <span className="text-sm text-neutral-500">({(review.rating ?? 0).toFixed(1)})</span>
+              </div>
+              {review.comment && (
+                <p className="text-sm text-neutral-600 mt-2 italic">"{review.comment}"</p>
+              )}
+            </div>
+          ) : showReviewForm ? (
+            <div className="space-y-4">
+              {(["quality", "communication", "timeliness", "budget"] as const).map((cat) => (
+                <div key={cat} className="flex items-center gap-3">
+                  <span className="w-32 text-sm font-medium capitalize text-neutral-700">{cat}</span>
+                  <div className="flex gap-0.5">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() =>
+                          setReviewForm((prev) => ({
+                            ...prev,
+                            categoryRatings: { ...prev.categoryRatings, [cat]: s },
+                          }))
+                        }
+                        className="p-0.5 hover:scale-110 transition-transform"
+                      >
+                        <Star
+                          size={22}
+                          className={s <= reviewForm.categoryRatings[cat] ? "fill-amber-400 text-amber-400" : "text-neutral-300"}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <Textarea
+                placeholder="Add a comment (optional)"
+                value={reviewForm.comment}
+                onChange={(e) => setReviewForm((prev) => ({ ...prev, comment: e.target.value }))}
+                rows={3}
+              />
+              <div className="flex gap-2">
+                <Button variant="primary" size="sm" disabled={submittingReview} onClick={() => void handleSubmitReview()}>
+                  {submittingReview ? "Submitting..." : "Submit Review"}
+                </Button>
+                <Button variant="outline" size="sm" disabled={submittingReview} onClick={() => setShowReviewForm(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button variant="primary" size="sm" onClick={() => setShowReviewForm(true)}>
+              Write Review
+            </Button>
           )}
         </div>
       )}
@@ -1547,6 +1734,98 @@ const Project = () => {
           onClose={() => setShowPaymentForm(false)}
         />
       )}
+
+      {/* Proof image lightbox */}
+      {proofLightbox.length > 0 &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90"
+            onClick={() => setProofLightbox([])}
+          >
+            <button
+              type="button"
+              className="absolute top-4 right-4 text-white/80 hover:text-white z-10"
+              onClick={() => setProofLightbox([])}
+            >
+              <X size={28} />
+            </button>
+            {proofLightbox.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white hover:bg-white/20 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setProofLightboxIdx((i) => (i - 1 + proofLightbox.length) % proofLightbox.length);
+                  }}
+                >
+                  <ChevronLeft size={24} />
+                </button>
+                <button
+                  type="button"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white hover:bg-white/20 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setProofLightboxIdx((i) => (i + 1) % proofLightbox.length);
+                  }}
+                >
+                  <ChevronRight size={24} />
+                </button>
+              </>
+            )}
+            <img
+              src={proofLightbox[proofLightboxIdx]}
+              alt={`Proof ${proofLightboxIdx + 1}`}
+              className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <span className="absolute bottom-6 left-1/2 -translate-x-1/2 text-sm text-white/70">
+              {proofLightboxIdx + 1} / {proofLightbox.length}
+            </span>
+          </div>,
+          document.body,
+        )}
+
+      {/* Dispute dialog */}
+      {disputeMilestoneId &&
+        createPortal(
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4" onClick={() => setDisputeMilestoneId(null)}>
+            <div
+              className="w-full max-w-md rounded-xl bg-white shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="border-b border-neutral-100 px-5 py-4">
+                <h3 className="text-lg font-semibold text-neutral-800">Dispute Milestone</h3>
+                <p className="mt-0.5 text-sm text-neutral-500">
+                  Explain what needs to be fixed. The contractor will be notified.
+                </p>
+              </div>
+              <div className="px-5 py-4">
+                <Textarea
+                  rows={4}
+                  placeholder="Describe the issue with this milestone..."
+                  value={disputeMessage}
+                  onChange={(e) => setDisputeMessage(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+              <div className="flex justify-end gap-2 border-t border-neutral-100 px-5 py-3">
+                <Button size="sm" variant="outline" onClick={() => setDisputeMilestoneId(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  disabled={!disputeMessage.trim() || isDisputing}
+                  onClick={() => void handleDisputeMilestone()}
+                >
+                  {isDisputing ? "Submitting..." : "Submit Dispute"}
+                </Button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 };

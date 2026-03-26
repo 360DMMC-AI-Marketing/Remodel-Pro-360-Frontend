@@ -19,6 +19,8 @@ export interface MilestoneRecord {
   estimatedDurationDays?: number;
   deliverables: string[];
   status: MilestoneStatus;
+  proofImages?: string[];
+  disputeReason?: string;
   dueDate?: string;
   paidAt?: string;
   createdAt: string;
@@ -44,8 +46,25 @@ export const milestoneService = {
     return response.data.data as MilestoneRecord[];
   },
 
-  updateMilestoneStatus: async (milestoneId: string, status: string) => {
-    const response = await api.patch(`/milestones/${milestoneId}/status`, { status });
+  updateMilestoneStatus: async (
+    milestoneId: string,
+    status: string,
+    options?: { proofImages?: File[]; disputeReason?: string },
+  ) => {
+    if (status === "submitted" && options?.proofImages && options.proofImages.length > 0) {
+      const formData = new FormData();
+      formData.append("status", status);
+      for (const file of options.proofImages) {
+        formData.append("proofImages", file);
+      }
+      const response = await api.patch(`/milestones/${milestoneId}/status`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data.data as MilestoneRecord;
+    }
+    const body: Record<string, string> = { status };
+    if (options?.disputeReason) body.disputeReason = options.disputeReason;
+    const response = await api.patch(`/milestones/${milestoneId}/status`, body);
     return response.data.data as MilestoneRecord;
   },
 };

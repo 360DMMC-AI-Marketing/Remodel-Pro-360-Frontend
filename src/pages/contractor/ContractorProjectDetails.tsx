@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ChevronLeft, ChevronRight, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, ImagePlus, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { getProjectById } from "@/api/porject";
 import { bidService, type BidRecord } from "@/api/bid";
@@ -13,6 +13,7 @@ import { Card } from "@/components/molecules/Card";
 import { Skeleton } from "@/components/atoms/Skeleton";
 import { Input } from "@/components/atoms/Input";
 import { Textarea } from "@/components/atoms/Textarea";
+import { getImageUrl } from "@/lib/utils";
 
 const BASE_IMAGE_URL = "https://rp360-uploads.s3.us-east-1.amazonaws.com/";
 const BID_STEPS: Array<"submitted" | "shortlisted" | "accepted"> = [
@@ -343,12 +344,51 @@ interface MilestoneStatusManagerProps {
 
 const MilestoneStatusManager = ({ milestones, onUpdated }: MilestoneStatusManagerProps) => {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [proofFiles, setProofFiles] = useState<Record<string, File[]>>({});
+  const [proofPreviews, setProofPreviews] = useState<Record<string, string[]>>({});
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const handleProofSelect = (milestoneId: string, files: FileList | null) => {
+    if (!files) return;
+    const newFiles = Array.from(files).slice(0, 5 - (proofFiles[milestoneId]?.length ?? 0));
+    if (newFiles.length === 0) return;
+
+    const updated = [...(proofFiles[milestoneId] ?? []), ...newFiles].slice(0, 5);
+    setProofFiles((prev) => ({ ...prev, [milestoneId]: updated }));
+
+    const previews = updated.map((f) => URL.createObjectURL(f));
+    setProofPreviews((prev) => {
+      // Revoke old URLs
+      prev[milestoneId]?.forEach((url) => URL.revokeObjectURL(url));
+      return { ...prev, [milestoneId]: previews };
+    });
+  };
+
+  const removeProofFile = (milestoneId: string, index: number) => {
+    const updatedFiles = (proofFiles[milestoneId] ?? []).filter((_, i) => i !== index);
+    setProofFiles((prev) => ({ ...prev, [milestoneId]: updatedFiles }));
+
+    setProofPreviews((prev) => {
+      const old = prev[milestoneId] ?? [];
+      if (old[index]) URL.revokeObjectURL(old[index]);
+      return { ...prev, [milestoneId]: old.filter((_, i) => i !== index) };
+    });
+  };
 
   const handleUpdate = async (id: string, status: string) => {
     try {
       setUpdatingId(id);
-      const updated = await milestoneService.updateMilestoneStatus(id, status);
+      const files = status === "submitted" ? proofFiles[id] : undefined;
+      const updated = await milestoneService.updateMilestoneStatus(id, status, { proofImages: files });
       onUpdated(updated);
+      // Clear proof files after successful submission
+      if (status === "submitted") {
+        setProofFiles((prev) => ({ ...prev, [id]: [] }));
+        setProofPreviews((prev) => {
+          prev[id]?.forEach((url) => URL.revokeObjectURL(url));
+          return { ...prev, [id]: [] };
+        });
+      }
       toast.success(`Milestone marked as ${status.replace(/_/g, " ")}.`);
     } catch {
       toast.error("Failed to update milestone status.");
@@ -381,6 +421,8 @@ const MilestoneStatusManager = ({ milestones, onUpdated }: MilestoneStatusManage
         {milestones.map((m) => {
           const action = contractorActions[m.status];
           const busy = updatingId === m._id;
+          const currentPreviews = proofPreviews[m._id] ?? [];
+          const currentFiles = proofFiles[m._id] ?? [];
           return (
             <div key={m._id} className="rounded-xl border border-neutral-200 p-4">
               <div className="flex items-start justify-between gap-3">
@@ -401,6 +443,56 @@ const MilestoneStatusManager = ({ milestones, onUpdated }: MilestoneStatusManage
                       {m.deliverables.map((d, i) => (
                         <span key={i} className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] text-neutral-500">{d}</span>
                       ))}
+                    </div>
+                  )}
+
+                  {/* Proof image upload for in_progress milestones */}
+                  {m.status === "in_progress" && (
+                    <div className="mt-3">
+                      <label className="block text-xs font-medium text-neutral-600 mb-1">Proof Photos (up to 5)</label>
+                      <input
+                        ref={(el) => { fileInputRefs.current[m._id] = el; }}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => handleProofSelect(m._id, e.target.files)}
+                      />
+                      <div className="flex flex-wrap gap-2 items-center">
+                        {currentPreviews.map((url, i) => (
+                          <div key={i} className="relative group">
+                            <img src={url} alt={`Proof ${i + 1}`} className="size-16 rounded-lg object-cover border border-neutral-200" />
+                            <button
+                              type="button"
+                              onClick={() => removeProofFile(m._id, i)}
+                              className="absolute -top-1.5 -right-1.5 size-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <X size={10} />
+                            </button>
+                          </div>
+                        ))}
+                        {currentFiles.length < 5 && (
+                          <button
+                            type="button"
+                            onClick={() => fileInputRefs.current[m._id]?.click()}
+                            className="size-16 rounded-lg border-2 border-dashed border-neutral-300 flex items-center justify-center text-neutral-400 hover:border-primary-400 hover:text-primary-500 transition-colors"
+                          >
+                            <ImagePlus size={20} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Display proof images on submitted/approved/paid milestones */}
+                  {m.proofImages && m.proofImages.length > 0 && ["submitted", "approved", "paid"].includes(m.status) && (
+                    <div className="mt-3">
+                      <p className="text-xs font-medium text-neutral-600 mb-1">Proof Photos</p>
+                      <div className="flex flex-wrap gap-2">
+                        {m.proofImages.map((img, i) => (
+                          <img key={i} src={getImageUrl(img)} alt={`Proof ${i + 1}`} className="size-16 rounded-lg object-cover border border-neutral-200" />
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>

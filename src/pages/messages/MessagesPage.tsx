@@ -18,12 +18,14 @@ import { messageService, type MessageRecord } from "@/api/message";
 import { getProjectById, getProjectsWithFilters } from "@/api/porject";
 import { bidService } from "@/api/bid";
 import { useAuth } from "@/stores/useAuth";
+import { getImageUrl } from "@/lib/utils";
 
 type PersonSummary = {
   _id?: string;
   fullName?: string;
   firstName?: string;
   lastName?: string;
+  avatar?: string;
 };
 
 type MessageProject = {
@@ -53,6 +55,7 @@ const toPerson = (value: RawPerson): PersonSummary | undefined => {
     fullName: value.fullName,
     firstName: value.firstName,
     lastName: value.lastName,
+    avatar: (value as PersonSummary).avatar,
   };
 };
 
@@ -191,6 +194,11 @@ const MessagesPage = () => {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [messages, setMessages] = useState<MessageRecord[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [showFilesPanel, setShowFilesPanel] = useState(false);
+  const [filesTab, setFilesTab] = useState<"images" | "files">("images");
   const [sending, setSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [draft, setDraft] = useState("");
@@ -234,12 +242,35 @@ const MessagesPage = () => {
     return undefined;
   }, [role, selectedProject]);
 
-  const contactName = useMemo(() => {
-    if (!selectedProject) return "";
-    if (role === "homeowner") return getDisplayName(selectedProject.contractor);
-    if (role === "contractor") return getDisplayName(selectedProject.homeowner);
-    return "Unknown";
+  const contactPerson = useMemo(() => {
+    if (!selectedProject) return undefined;
+    if (role === "homeowner") return selectedProject.contractor;
+    if (role === "contractor") return selectedProject.homeowner;
+    return undefined;
   }, [selectedProject, role]);
+
+  const contactName = useMemo(() => getDisplayName(contactPerson), [contactPerson]);
+
+  const sharedFiles = useMemo(() => {
+    const files: { url: string; name: string; isImage: boolean; date: string }[] = [];
+    for (const msg of messages) {
+      for (const att of msg.attachments ?? []) {
+        const urlPath = att.split("?")[0];
+        const isImage = /\.(jpe?g|png|webp|gif)$/i.test(urlPath);
+        const rawName = urlPath.split("/").pop() ?? "file";
+        files.push({
+          url: att,
+          name: decodeURIComponent(rawName),
+          isImage,
+          date: msg.createdAt,
+        });
+      }
+    }
+    return files;
+  }, [messages]);
+
+  const sharedImages = useMemo(() => sharedFiles.filter((f) => f.isImage), [sharedFiles]);
+  const sharedDocs = useMemo(() => sharedFiles.filter((f) => !f.isImage), [sharedFiles]);
 
   const filteredProjects = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -310,21 +341,39 @@ const MessagesPage = () => {
     }
   };
 
-  const loadMessages = async (projectId: string) => {
+  const loadMessages = async (projectId: string, page = 1, prepend = false) => {
     try {
-      setLoadingMessages(true);
-      const data = await messageService.getProjectMessages(projectId, 1, 100);
-      const sorted = [...data].sort((a, b) => {
-        const aTime = new Date(a.createdAt ?? 0).getTime();
-        const bTime = new Date(b.createdAt ?? 0).getTime();
-        return aTime - bTime;
-      });
-      setMessages(sorted);
+      if (prepend) setLoadingOlder(true);
+      else setLoadingMessages(true);
+
+      const result = await messageService.getProjectMessages(projectId, page, 30);
+      const sorted = [...result.messages].sort((a, b) =>
+        new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime(),
+      );
+
+      if (prepend) {
+        setMessages((prev) => {
+          const existingIds = new Set(prev.map((m) => m._id));
+          const newOnes = sorted.filter((m) => !existingIds.has(m._id));
+          return [...newOnes, ...prev];
+        });
+      } else {
+        setMessages(sorted);
+      }
+
+      setCurrentPage(result.page);
+      setTotalPages(result.totalPages);
     } catch {
       toast.error("Failed to load messages.");
     } finally {
       setLoadingMessages(false);
+      setLoadingOlder(false);
     }
+  };
+
+  const handleLoadOlder = () => {
+    if (!selectedProjectId || currentPage >= totalPages || loadingOlder) return;
+    void loadMessages(selectedProjectId, currentPage + 1, true);
   };
 
   const loadUnreadCounts = async () => {
@@ -346,6 +395,9 @@ const MessagesPage = () => {
   useEffect(() => {
     if (!selectedProjectId) {
       setMessages([]);
+      setCurrentPage(1);
+      setTotalPages(1);
+      setShowFilesPanel(false);
       return;
     }
     void loadMessages(selectedProjectId);
@@ -567,7 +619,7 @@ const MessagesPage = () => {
   };
 
   return (
-    <div className="grid h-screen grid-cols-12 overflow-hidden">
+    <div className="grid h-full grid-cols-12 overflow-hidden">
       <div
         className={`col-span-12 h-full flex-col border-r border-r-neutral-300 bg-white md:col-span-4 md:flex lg:col-span-3 ${
           selectedProjectId ? "hidden" : "flex"
@@ -597,11 +649,12 @@ const MessagesPage = () => {
           ) : (
             filteredProjects.map((project) => {
               const active = selectedProjectId === project._id;
-              const name =
-                role === "homeowner"
-                  ? getDisplayName(project.contractor)
-                  : getDisplayName(project.homeowner);
+              const person = role === "homeowner" ? project.contractor : project.homeowner;
+              const name = getDisplayName(person);
               const avatarClass = getAvatarClass(project._id);
+              const personAvatar = person?.avatar
+                ? (person.avatar.startsWith("http") ? person.avatar : getImageUrl(person.avatar))
+                : null;
 
               return (
                 <button
@@ -615,11 +668,13 @@ const MessagesPage = () => {
                     active ? "bg-neutral-100" : "hover:bg-neutral-100"
                   }`}
                 >
-                  <div
-                    className={`size-10 rounded-full bg-linear-to-br ${avatarClass} flex items-center justify-center text-white font-semibold`}
-                  >
-                    {getInitials(name)}
-                  </div>
+                  {personAvatar ? (
+                    <img src={personAvatar} alt={name} referrerPolicy="no-referrer" className="size-10 rounded-full object-cover shrink-0" />
+                  ) : (
+                    <div className={`size-10 rounded-full bg-linear-to-br ${avatarClass} flex items-center justify-center text-white font-semibold shrink-0`}>
+                      {getInitials(name)}
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <h6 className="font-normal">{name}</h6>
                     <p className="truncate text-sm text-neutral-500">{project.title}</p>
@@ -662,27 +717,58 @@ const MessagesPage = () => {
               >
                 <ChevronLeft className="size-5" />
               </button>
-              <div
-                className={`mr-4 size-12 rounded-full bg-linear-to-br ${getAvatarClass(receiverId ?? selectedProject._id)} flex items-center justify-center text-white font-semibold`}
-              >
-                {getInitials(contactName)}
-              </div>
-              <div>
-                <h6 className="font-normal">{contactName}</h6>
+              {(() => {
+                const av = contactPerson?.avatar
+                  ? (contactPerson.avatar.startsWith("http") ? contactPerson.avatar : getImageUrl(contactPerson.avatar))
+                  : null;
+                return av ? (
+                  <img src={av} alt={contactName} referrerPolicy="no-referrer" className="mr-4 size-12 rounded-full object-cover shrink-0" />
+                ) : (
+                  <div className={`mr-4 size-12 rounded-full bg-linear-to-br ${getAvatarClass(receiverId ?? selectedProject._id)} flex items-center justify-center text-white font-semibold shrink-0`}>
+                    {getInitials(contactName)}
+                  </div>
+                );
+              })()}
+              <div className="min-w-0 flex-1">
+                <h6 className="font-normal truncate">{contactName}</h6>
                 <div className="flex items-center gap-1">
                   <div className="size-2 rounded-full bg-green-500" />
                   <span className="text-sm text-neutral-500">Online</span>
                 </div>
               </div>
+              {sharedFiles.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowFilesPanel((v) => !v)}
+                  className="ml-auto shrink-0 flex items-center gap-1.5 rounded-lg border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-100 transition-colors"
+                >
+                  <Paperclip className="size-3.5" />
+                  <span className="hidden sm:inline">Files</span>
+                  <span className="text-neutral-400">({sharedFiles.length})</span>
+                </button>
+              )}
             </div>
 
-            <div ref={listRef} className="h-[calc(100vh-8rem)] overflow-y-auto p-6">
+            <div ref={listRef} className="flex-1 overflow-y-auto p-4 md:p-6">
               {loadingMessages ? (
                 <p className="text-sm text-neutral-500">Loading messages...</p>
               ) : messages.length === 0 ? (
                 <p className="text-sm text-neutral-500">No messages yet. Start the conversation.</p>
               ) : (
-                messages.map((message, index) => {
+                <>
+                {currentPage < totalPages && (
+                  <div className="flex justify-center mb-4">
+                    <button
+                      type="button"
+                      onClick={handleLoadOlder}
+                      disabled={loadingOlder}
+                      className="rounded-full border border-neutral-200 bg-white px-4 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
+                    >
+                      {loadingOlder ? "Loading..." : "Load older messages"}
+                    </button>
+                  </div>
+                )}
+                {messages.map((message, index) => {
                   const mine = getSenderId(message.senderId) === currentUserId;
                   const canEditMessage = canEditWithinTenMinutes(message.createdAt);
                   const isEditing = editingMessageId === message._id;
@@ -836,14 +922,14 @@ const MessagesPage = () => {
                                     href={attachment}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs ${
+                                    className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs max-w-48 sm:max-w-60 ${
                                       mine
                                         ? "border-white/30 text-white hover:bg-white/10"
                                         : "border-neutral-300 text-neutral-700 hover:bg-neutral-100"
                                     }`}
                                   >
                                     <Download className="size-4 shrink-0" />
-                                    <span className="truncate">{fileName}</span>
+                                    <span className="truncate min-w-0">{fileName}</span>
                                   </a>
                                 );
                               })}
@@ -858,7 +944,8 @@ const MessagesPage = () => {
                     </div>
                     </div>
                   );
-                })
+                })}
+                </>
               )}
             </div>
 
@@ -933,6 +1020,97 @@ const MessagesPage = () => {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Shared files sidebar */}
+      <div
+        className={`fixed inset-0 z-50 transition-opacity duration-300 ${showFilesPanel ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+      >
+        <div className="absolute inset-0 bg-black/30" onClick={() => setShowFilesPanel(false)} />
+        <div
+          className={`absolute right-0 top-0 h-full w-80 bg-white shadow-2xl flex flex-col transition-transform duration-300 ease-in-out ${showFilesPanel ? "translate-x-0" : "translate-x-full"}`}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-3 shrink-0">
+            <h3 className="text-sm font-semibold text-neutral-800">Shared Media & Files</h3>
+            <button type="button" onClick={() => setShowFilesPanel(false)} className="rounded-full p-1 hover:bg-neutral-100">
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex border-b border-neutral-100 shrink-0">
+            <button
+              type="button"
+              onClick={() => setFilesTab("images")}
+              className={`flex-1 py-2.5 text-xs font-medium transition-colors ${
+                filesTab === "images"
+                  ? "border-b-2 border-primary-500 text-primary-600"
+                  : "text-neutral-500 hover:text-neutral-700"
+              }`}
+            >
+              Images ({sharedImages.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilesTab("files")}
+              className={`flex-1 py-2.5 text-xs font-medium transition-colors ${
+                filesTab === "files"
+                  ? "border-b-2 border-primary-500 text-primary-600"
+                  : "text-neutral-500 hover:text-neutral-700"
+              }`}
+            >
+              Files ({sharedDocs.length})
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-3">
+            {filesTab === "images" ? (
+              sharedImages.length === 0 ? (
+                <p className="text-xs text-neutral-400 text-center py-10">No images shared yet.</p>
+              ) : (
+                <div className="grid grid-cols-3 gap-1.5">
+                  {sharedImages.map((file, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setPreviewImage(file.url)}
+                      className="aspect-square rounded-lg overflow-hidden hover:ring-2 hover:ring-primary-400 transition-all"
+                    >
+                      <img src={file.url} alt={file.name} className="size-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )
+            ) : (
+              sharedDocs.length === 0 ? (
+                <p className="text-xs text-neutral-400 text-center py-10">No files shared yet.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {sharedDocs.map((file, i) => (
+                    <a
+                      key={i}
+                      href={file.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2.5 rounded-lg border border-neutral-200 p-2.5 hover:bg-neutral-50 transition-colors"
+                    >
+                      <div className="flex size-9 items-center justify-center rounded-lg bg-neutral-100 shrink-0">
+                        <FileText size={16} className="text-neutral-500" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-neutral-700 truncate">{file.name}</p>
+                        <p className="text-[10px] text-neutral-400">{new Date(file.date).toLocaleDateString()}</p>
+                      </div>
+                      <Download size={14} className="shrink-0 text-neutral-400" />
+                    </a>
+                  ))}
+                </div>
+              )
+            )}
+          </div>
+        </div>
       </div>
 
       {deleteConfirmId && (

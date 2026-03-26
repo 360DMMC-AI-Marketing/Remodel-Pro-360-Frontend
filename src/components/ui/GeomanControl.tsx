@@ -45,10 +45,12 @@ const stripClosingPoint = (ring: number[][]): number[][] => {
 const GeomanControl = ({ value, onPolygonComplete }: GeomanControlProps) => {
   const map = useMap();
   const activeLayerRef = useRef<L.Polygon | null>(null);
+  const callbackRef = useRef(onPolygonComplete);
+  callbackRef.current = onPolygonComplete;
 
   const emitPolygon = useCallback((layer: L.Polygon | null) => {
     if (!layer) {
-      onPolygonComplete(null);
+      callbackRef.current(null);
       return;
     }
 
@@ -57,15 +59,15 @@ const GeomanControl = ({ value, onPolygonComplete }: GeomanControlProps) => {
     const closedRing = toClosedGeoJsonRing(outerRing);
 
     if (closedRing.length < 4) {
-      onPolygonComplete(null);
+      callbackRef.current(null);
       return;
     }
 
-    onPolygonComplete({
+    callbackRef.current({
       type: 'Polygon',
       coordinates: [closedRing],
     });
-  }, [onPolygonComplete]);
+  }, []);
 
   useEffect(() => {
     const pmMap = map as L.Map & {
@@ -128,7 +130,7 @@ const GeomanControl = ({ value, onPolygonComplete }: GeomanControlProps) => {
     const handleRemove = (event: L.LeafletEvent & { layer?: L.Layer }) => {
       if (event.layer === activeLayerRef.current) {
         activeLayerRef.current = null;
-        onPolygonComplete(null);
+        callbackRef.current(null);
       }
     };
 
@@ -149,7 +151,7 @@ const GeomanControl = ({ value, onPolygonComplete }: GeomanControlProps) => {
         activeLayerRef.current = null;
       }
     };
-  }, [emitPolygon, map, onPolygonComplete]);
+  }, [emitPolygon, map]);
 
   useEffect(() => {
     const incomingRing = value?.coordinates?.[0];

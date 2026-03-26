@@ -10,8 +10,8 @@ export interface EscrowPaymentResponse {
 
 export interface PaymentRecord {
   _id: string;
-  projectId: string;
-  milestoneId?: string;
+  projectId: string | { _id: string; title?: string };
+  milestoneId?: string | { _id: string; name?: string };
   type: "escrow_deposit" | "escrow_release" | "milestone_payout" | "fee";
   amount: number;
   status: "pending" | "succeeded" | "failed";
@@ -19,6 +19,20 @@ export interface PaymentRecord {
   description?: string;
   completedAt?: string;
   createdAt: string;
+}
+
+export interface PaymentSummary {
+  totalPaid: number;
+  totalPending: number;
+  totalInEscrow: number;
+}
+
+export interface MyPaymentsResponse {
+  payments: PaymentRecord[];
+  summary: PaymentSummary;
+  total: number;
+  page: number;
+  totalPages: number;
 }
 
 export interface EscrowStatus {
@@ -56,5 +70,10 @@ export const paymentService = {
       funded: escrow.totalDeposited > 0,
       payments: raw.payments ?? [],
     } as EscrowStatus;
+  },
+
+  getMyPayments: async (page = 1, limit = 20) => {
+    const response = await api.get("/payments/my", { params: { page, limit } });
+    return response.data as MyPaymentsResponse;
   },
 };

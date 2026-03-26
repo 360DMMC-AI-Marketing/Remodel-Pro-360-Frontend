@@ -12,9 +12,11 @@ import EmailVerification from "./pages/auth/EmailVerification";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
 import HomeownerDashboard from "./pages/homeowner/HomeownerDashboard";
-import HomeownerLayout from "./pages/homeowner/HomeownerLayout";
+import DashboardLayout from "./components/layouts/DashboardLayout";
 import Projects from "./pages/homeowner/Projects";
 import NewProject from "./pages/homeowner/NewProject";
+import HomeownerProfile from "./pages/homeowner/HomeownerProfile";
+import PaymentsPage from "./pages/homeowner/PaymentsPage";
 import ContractorDashboard from "./pages/contractor/ContractorDashboard";
 import { useAuth } from "./stores/useAuth";
 import Project from "./pages/homeowner/Project";
@@ -26,6 +28,7 @@ import ContractorProjectDetails from "./pages/contractor/ContractorProjectDetail
 import MessagesPage from "./pages/messages/MessagesPage";
 import FindContractors from "./pages/homeowner/FindContractors";
 import ContractorDetails from "./pages/homeowner/ContractorDetails";
+import NotificationsPage from "./pages/NotificationsPage";
 
 interface ProtectedRoutesProps {
   allowedRole?: "homeowner" | "contractor" | "admin";
@@ -90,7 +93,7 @@ function App() {
         </Route>
 
         <Route element={<ProtectedRoutes allowedRole="homeowner" />}>
-          <Route path="/homeowner" element={<HomeownerLayout />}>
+          <Route path="/homeowner" element={<DashboardLayout />}>
             <Route path="/homeowner/dashboard" element={<HomeownerDashboard />} />
             <Route path="/homeowner/projects" element={<Projects />} />
             <Route path="/homeowner/projects/new" element={<NewProject />} />
@@ -98,14 +101,18 @@ function App() {
             <Route path="/homeowner/contractors" element={<FindContractors />} />
             <Route path="/homeowner/contractors/:id" element={<ContractorDetails />} />
             <Route path="/homeowner/messages" element={<MessagesPage />} />
+            <Route path="/homeowner/notifications" element={<NotificationsPage />} />
+            <Route path="/homeowner/profile" element={<HomeownerProfile />} />
+            <Route path="/homeowner/payments" element={<PaymentsPage />} />
           </Route>
         </Route>
         <Route element={<ProtectedRoutes allowedRole="contractor" />}>
-          <Route path="/contractor" element={<HomeownerLayout />} >
+          <Route path="/contractor" element={<DashboardLayout />} >
             <Route path="/contractor/dashboard" element={<ContractorDashboard />} />
             <Route path="/contractor/profile" element={<ContractorProfile />} />
             <Route path="/contractor/projects" element={<ContractorProjects />} />
             <Route path="/contractor/messages" element={<MessagesPage />} />
+            <Route path="/contractor/notifications" element={<NotificationsPage />} />
             <Route
               path="/contractor/projects/:id"
               element={<ContractorProjectDetails />}
@@ -113,9 +120,10 @@ function App() {
           </Route>
         </Route>
         <Route element={<ProtectedRoutes allowedRole="admin" />}>
-          <Route path="/admin" element={<HomeownerLayout />} >
+          <Route path="/admin" element={<DashboardLayout />} >
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/vetting" element={<ContractorVetting />} />
+            <Route path="/admin/notifications" element={<NotificationsPage />} />
           </Route>
         </Route>
         <Route path="*" element={<NotFound />} />

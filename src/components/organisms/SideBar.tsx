@@ -26,7 +26,7 @@ const homeownerLinks = [
   { to: "/homeowner/projects", label: "Projects", icon: FolderOpen },
   { to: "/homeowner/contractors", label: "Find Contractors", icon: Search },
   { to: "/homeowner/messages", label: "Messages", icon: MessageSquare },
-  { to: "/", label: "Payment", icon: CreditCard },
+  { to: "/homeowner/payments", label: "Payment", icon: CreditCard },
   { to: "/", label: "Settings", icon: Settings },
 ];
 
@@ -49,9 +49,11 @@ const adminLinks = [
 const SideBar = ({
   isCollapsed,
   setIsCollapsed,
+  onNavigate,
 }: {
   isCollapsed: boolean;
   setIsCollapsed: (isCollapsed: boolean) => void;
+  onNavigate?: () => void;
 }) => {
   const { user, logout } = useAuth();
   const location = useLocation();
@@ -72,7 +74,7 @@ const SideBar = ({
       className={`fixed top-0 left-0 h-screen ${isCollapsed ? "w-sidebar-collapsed" : "w-sidebar"} transition-all duration-300 bg-white border-r border-r-neutral-200 flex flex-col`}
     >
       {/* Logo */}
-      <div className="p-3 border-b border-b-neutral-200 flex items-center space-x-2">
+      <div className="h-14 px-3 border-b border-b-neutral-200 flex items-center space-x-2 shrink-0">
         <div className="bg-linear-to-br from-primary-500 to-primary-900 p-3 rounded-xl">
           <Sparkles size={22} className="text-white" />
         </div>
@@ -87,6 +89,7 @@ const SideBar = ({
             <Link
             key={i}
             to={l.to}
+            onClick={onNavigate}
               className={
                 `flex items-center space-x-2 p-3 rounded-xl cursor-pointer ${active ? 'bg-primary-100' : 'group hover:bg-neutral-100 transition-colors duration-200'}`
               }
@@ -107,7 +110,7 @@ const SideBar = ({
         <div className="border-t border-t-neutral-200 py-2">
           <button
             className="w-full flex items-center space-x-2 p-3 rounded-xl group hover:bg-red-100 cursor-pointer"
-            onClick={logout}
+            onClick={() => { onNavigate?.(); logout(); }}
           >
             <LogOut
               size={22}
@@ -122,7 +125,7 @@ const SideBar = ({
         </div>
       </div>
       <button
-        className={`absolute top-1/8 ${isCollapsed ? "left-92/100" : "left-98/100"} cursor-pointer flex justify-center items-center bg-white size-6 rounded-full border border-neutral-200`}
+        className={`absolute top-1/8 ${isCollapsed ? "left-92/100" : "left-98/100"} cursor-pointer hidden lg:flex justify-center items-center bg-white size-6 rounded-full border border-neutral-200`}
         onClick={() => setIsCollapsed(!isCollapsed)}
       >
         {isCollapsed ? (

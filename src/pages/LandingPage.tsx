@@ -2,6 +2,7 @@ import { Button } from "@/components/atoms/Button";
 import heroImage from "../assets/hero.jpg";
 import Header from "@/components/organisms/Header";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/stores/useAuth";
 import { Container } from "@/components/atoms/Container";
 import {
   Camera,
@@ -18,6 +19,8 @@ import { motion } from "framer-motion";
 
 const LandingPage = () => {
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuth();
+  const dashboardPath = isAuthenticated ? `/${user?.role}/dashboard` : "/register";
   return (
     <div className="min-h-screen bg-neutral-100">
       <Header />
@@ -50,10 +53,10 @@ const LandingPage = () => {
                 <Button
                   variant="secondary"
                   size="md"
-                  onClick={() => navigate("/register")}
+                  onClick={() => navigate(dashboardPath)}
                   className="gradient-accent shadow-lg hover:opacity-90"
                 >
-                  Design Your Space Free
+                  {isAuthenticated ? "Go to Dashboard" : "Design Your Space Free"}
                 </Button>
                 <Button
                   size="md"
@@ -270,8 +273,13 @@ const LandingPage = () => {
             <p className="text-white text-sm md:text-base max-w-2xl mx-auto">
               Join thousands of homeowners who've brought their vision to life
             </p>
-            <Button variant="secondary" size="md" className="mt-10">
-              Get Started
+            <Button
+              variant="secondary"
+              size="md"
+              className="mt-10"
+              onClick={() => navigate(dashboardPath)}
+            >
+              {isAuthenticated ? "Go to Dashboard" : "Get Started"}
             </Button>
           </div>
         </Container>

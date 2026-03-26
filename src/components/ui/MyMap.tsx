@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { MapContainer, TileLayer } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import GeomanControl from './GeomanControl';
@@ -15,9 +16,12 @@ interface MyMapProps {
 const CHICAGO_POSITION: [number, number] = [41.8781, -87.6298];
 
 const MyMap = ({ value, onChange }: MyMapProps) => {
-  const handlePolygonComplete = (polygon: ServiceAreaPolygon | null) => {
-    onChange?.(polygon);
-  };
+  const handlePolygonComplete = useCallback(
+    (polygon: ServiceAreaPolygon | null) => {
+      onChange?.(polygon);
+    },
+    [onChange],
+  );
 
   return (
     <div style={{ height: '400px', width: '100%' }}>
