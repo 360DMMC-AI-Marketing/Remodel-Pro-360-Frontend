@@ -47,9 +47,13 @@ export interface DisputedMilestone {
   _id: string;
   projectId: string;
   name: string;
+  description?: string;
   order: number;
   paymentAmount: number;
   status: string;
+  disputeReason?: string;
+  proofImages?: string[];
+  deliverables?: string[];
   updatedAt: string;
   project?: {
     title: string;
@@ -57,10 +61,23 @@ export interface DisputedMilestone {
   };
 }
 
+export interface ChartData {
+  signupSeries: { month: string; homeowners: number; contractors: number }[];
+  projectsByStatus: { status: string; count: number }[];
+  revenueSeries: { month: string; revenue: number; platformFees: number }[];
+  projectsByRoom: { roomType: string; count: number }[];
+  bidSeries: { month: string; submitted: number; accepted: number }[];
+}
+
 export const adminService = {
   getStats: async (): Promise<AdminStats> => {
     const response = await api.get("/admin/stats");
     return response.data as AdminStats;
+  },
+
+  getChartData: async (): Promise<ChartData> => {
+    const response = await api.get("/admin/charts");
+    return response.data as ChartData;
   },
 
   getUsers: async (params: {

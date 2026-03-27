@@ -1,5 +1,5 @@
 import { Button } from "@/components/atoms/Button";
-import { getProjectsWithFilters } from "@/api/porject";
+import { getProjectsWithFilters } from "@/api/project";
 import { useAuth } from "@/stores/useAuth";
 import { Plus, Search } from "lucide-react";
 import { useEffect, useState } from "react";

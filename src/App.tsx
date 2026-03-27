@@ -23,6 +23,7 @@ import Project from "./pages/homeowner/Project";
 import ContractorProfile from "./pages/contractor/ContractorProfile";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import ContractorVetting from "./pages/admin/ContractorVetting";
+import AdminUsers from "./pages/admin/AdminUsers";
 import ContractorProjects from "./pages/contractor/ContractorProjects";
 import ContractorProjectDetails from "./pages/contractor/ContractorProjectDetails";
 import MessagesPage from "./pages/messages/MessagesPage";
@@ -122,6 +123,7 @@ function App() {
         <Route element={<ProtectedRoutes allowedRole="admin" />}>
           <Route path="/admin" element={<DashboardLayout />} >
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/users" element={<AdminUsers />} />
             <Route path="/admin/vetting" element={<ContractorVetting />} />
             <Route path="/admin/notifications" element={<NotificationsPage />} />
           </Route>

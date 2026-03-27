@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { createProject } from "@/api/porject";
+import { createProject } from "@/api/project";
 import LocationPickerMap from "@/components/ui/LocationPickerMap";
 
 const STEPS = [

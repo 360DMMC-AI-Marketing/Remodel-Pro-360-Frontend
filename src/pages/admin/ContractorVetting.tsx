@@ -254,22 +254,22 @@ const ContractorVetting = () => {
                   <TableRow key={r._id}>
                     <TableCell className="p-4">
                       <div className="flex items-center gap-3">
-                        {c.avatar ? (
+                        {c?.avatar ? (
                           <img
                             src={getImageUrl(c.avatar)}
-                            alt={`${c.firstName} ${c.lastName}`}
+                            alt={`${c?.firstName} ${c?.lastName}`}
                             className="w-10 h-10 rounded-full object-cover shrink-0"
                           />
                         ) : (
                           <div className="w-10 h-10 bg-primary-200 rounded-full flex justify-center items-center shrink-0">
                             <span className="text-primary-600 text-sm font-medium">
-                              {c.firstName[0]}{c.lastName[0]}
+                              {c?.firstName[0]}{c?.lastName[0]}
                             </span>
                           </div>
                         )}
                         <div>
-                          <p className="font-medium text-sm">{c.firstName} {c.lastName}</p>
-                          <p className="text-xs text-neutral-500">{c.email}</p>
+                          <p className="font-medium text-sm">{c?.firstName} {c?.lastName}</p>
+                          <p className="text-xs text-neutral-500">{c?.email}</p>
                         </div>
                       </div>
                     </TableCell>

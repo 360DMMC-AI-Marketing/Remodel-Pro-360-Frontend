@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import type { HomeownerProject } from "@/types/project";
-import { deleteProject, getProjectById, updateProject, updateProjectStatus } from "@/api/porject";
+import { deleteProject, getProjectById, updateProject, updateProjectStatus } from "@/api/project";
 import { bidService, type HomeownerBid } from "@/api/bid";
 import { contractService, type ContractRecord } from "@/api/contract";
 import { milestoneService, type MilestoneRecord } from "@/api/milestone";
@@ -1302,6 +1302,35 @@ const Project = () => {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Complete Project */}
+      {projectContract?.status === "signed" && project?.status === "in_progress" && milestones.length > 0 && milestones.every((m) => m.status === "paid") && (
+        <div className="mt-6 flex flex-col items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-6 text-center">
+          <div className="size-12 rounded-full bg-emerald-100 flex items-center justify-center">
+            <svg className="size-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <p className="font-semibold text-emerald-800">All milestones are paid!</p>
+          <p className="text-sm text-emerald-700">Mark this project as complete and leave a review for the contractor.</p>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={async () => {
+              try {
+                await updateProjectStatus(id!, "completed");
+                setProject((prev) => prev ? { ...prev, status: "completed" } : prev);
+                toast.success("Project marked as completed!");
+                setShowReviewForm(true);
+              } catch {
+                toast.error("Failed to complete project.");
+              }
+            }}
+          >
+            Complete Project
+          </Button>
         </div>
       )}
 

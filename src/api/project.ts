@@ -218,7 +218,7 @@ export const deleteProject = async (projectId: string) => {
 
 export const updateProjectStatus = async (
   projectId: string,
-  status: "draft" | "bidding" | "cancelled",
+  status: "draft" | "bidding" | "cancelled" | "completed",
 ) => {
   try {
     const response = await api.patch(`/projects/${projectId}/status`, { status });

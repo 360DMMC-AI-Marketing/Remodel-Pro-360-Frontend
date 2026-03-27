@@ -15,7 +15,7 @@ import {
 import { toast } from "sonner";
 import { Input } from "@/components/atoms/Input";
 import { messageService, type MessageRecord } from "@/api/message";
-import { getProjectById, getProjectsWithFilters } from "@/api/porject";
+import { getProjectById, getProjectsWithFilters } from "@/api/project";
 import { bidService } from "@/api/bid";
 import { useAuth } from "@/stores/useAuth";
 import { getImageUrl } from "@/lib/utils";

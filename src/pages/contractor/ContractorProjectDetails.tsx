@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ChevronLeft, ChevronRight, ImagePlus, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
-import { getProjectById } from "@/api/porject";
+import { getProjectById } from "@/api/project";
 import { bidService, type BidRecord } from "@/api/bid";
 import { contractService, type ContractRecord } from "@/api/contract";
 import { milestoneService, type MilestoneRecord, type CreateMilestonePayload } from "@/api/milestone";

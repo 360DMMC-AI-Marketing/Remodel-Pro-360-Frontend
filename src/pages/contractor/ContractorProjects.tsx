@@ -8,7 +8,7 @@ import { Button } from "@/components/atoms/Button";
 import { Input } from "@/components/atoms/Input";
 import { Textarea } from "@/components/atoms/Textarea";
 import { Card } from "@/components/molecules/Card";
-import { getProjectById } from "@/api/porject";
+import { getProjectById } from "@/api/project";
 import {
   bidService,
   type BidRecord,
