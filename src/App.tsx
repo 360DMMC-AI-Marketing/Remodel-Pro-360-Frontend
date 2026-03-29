@@ -17,6 +17,7 @@ import Projects from "./pages/homeowner/Projects";
 import NewProject from "./pages/homeowner/NewProject";
 import HomeownerProfile from "./pages/homeowner/HomeownerProfile";
 import PaymentsPage from "./pages/homeowner/PaymentsPage";
+import DesignStudio from "./pages/homeowner/DesignStudio";
 import ContractorDashboard from "./pages/contractor/ContractorDashboard";
 import { useAuth } from "./stores/useAuth";
 import Project from "./pages/homeowner/Project";
@@ -25,11 +26,13 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import ContractorVetting from "./pages/admin/ContractorVetting";
 import AdminUsers from "./pages/admin/AdminUsers";
 import ContractorProjects from "./pages/contractor/ContractorProjects";
+import ContractorEarnings from "./pages/contractor/ContractorEarnings";
 import ContractorProjectDetails from "./pages/contractor/ContractorProjectDetails";
 import MessagesPage from "./pages/messages/MessagesPage";
 import FindContractors from "./pages/homeowner/FindContractors";
 import ContractorDetails from "./pages/homeowner/ContractorDetails";
 import NotificationsPage from "./pages/NotificationsPage";
+import SettingsPage from "./pages/SettingsPage";
 
 interface ProtectedRoutesProps {
   allowedRole?: "homeowner" | "contractor" | "admin";
@@ -96,6 +99,7 @@ function App() {
         <Route element={<ProtectedRoutes allowedRole="homeowner" />}>
           <Route path="/homeowner" element={<DashboardLayout />}>
             <Route path="/homeowner/dashboard" element={<HomeownerDashboard />} />
+            <Route path="/homeowner/design-studio" element={<DesignStudio />} />
             <Route path="/homeowner/projects" element={<Projects />} />
             <Route path="/homeowner/projects/new" element={<NewProject />} />
             <Route path="/homeowner/projects/:id" element={<Project />} />
@@ -105,6 +109,7 @@ function App() {
             <Route path="/homeowner/notifications" element={<NotificationsPage />} />
             <Route path="/homeowner/profile" element={<HomeownerProfile />} />
             <Route path="/homeowner/payments" element={<PaymentsPage />} />
+            <Route path="/homeowner/settings" element={<SettingsPage />} />
           </Route>
         </Route>
         <Route element={<ProtectedRoutes allowedRole="contractor" />}>
@@ -112,8 +117,10 @@ function App() {
             <Route path="/contractor/dashboard" element={<ContractorDashboard />} />
             <Route path="/contractor/profile" element={<ContractorProfile />} />
             <Route path="/contractor/projects" element={<ContractorProjects />} />
+            <Route path="/contractor/earnings" element={<ContractorEarnings />} />
             <Route path="/contractor/messages" element={<MessagesPage />} />
             <Route path="/contractor/notifications" element={<NotificationsPage />} />
+            <Route path="/contractor/settings" element={<SettingsPage />} />
             <Route
               path="/contractor/projects/:id"
               element={<ContractorProjectDetails />}

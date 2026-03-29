@@ -1,0 +1,389 @@
+import { useState, useRef } from "react";
+import {
+  Upload,
+  Image as ImageIcon,
+  Sparkles,
+  Loader2,
+  X,
+  ChevronDown,
+  DollarSign,
+  Layers,
+  Paintbrush,
+  ArrowRight,
+} from "lucide-react";
+import { Button } from "@/components/atoms/Button";
+import { Textarea } from "@/components/atoms/Textarea";
+import { toast } from "sonner";
+
+const ROOM_TYPES = [
+  "Kitchen",
+  "Bathroom",
+  "Living Room",
+  "Bedroom",
+  "Dining Room",
+  "Home Office",
+  "Basement",
+  "Outdoor / Patio",
+];
+
+const DESIGN_STYLES = [
+  { id: "modern", label: "Modern", emoji: "🏢" },
+  { id: "minimalist", label: "Minimalist", emoji: "⬜" },
+  { id: "industrial", label: "Industrial", emoji: "🏗️" },
+  { id: "scandinavian", label: "Scandinavian", emoji: "🌿" },
+  { id: "bohemian", label: "Bohemian", emoji: "🎨" },
+  { id: "traditional", label: "Traditional", emoji: "🏛️" },
+  { id: "mid-century", label: "Mid-Century", emoji: "🪑" },
+  { id: "farmhouse", label: "Farmhouse", emoji: "🌾" },
+];
+
+// Mock generated designs for demo
+const MOCK_GENERATED = [
+  { id: "1", url: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=600&h=400&fit=crop", label: "Design Option A" },
+  { id: "2", url: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&h=400&fit=crop", label: "Design Option B" },
+];
+
+// Mock materials list
+const MOCK_MATERIALS = [
+  { name: "Quartz Countertop", qty: "30 sq ft", unit: "$75/sq ft", total: 2250 },
+  { name: "Shaker Cabinets", qty: "12 units", unit: "$350/unit", total: 4200 },
+  { name: "Subway Tile Backsplash", qty: "25 sq ft", unit: "$12/sq ft", total: 300 },
+  { name: "Hardwood Flooring", qty: "150 sq ft", unit: "$8/sq ft", total: 1200 },
+  { name: "Pendant Lights", qty: "3 units", unit: "$120/unit", total: 360 },
+  { name: "Under-cabinet LED Strip", qty: "10 ft", unit: "$15/ft", total: 150 },
+];
+
+const DesignStudio = () => {
+  // Left panel state
+  const [uploadedImages, setUploadedImages] = useState<{ file: File; preview: string }[]>([]);
+  const [roomType, setRoomType] = useState("");
+  const [designStyle, setDesignStyle] = useState("");
+  const [prompt, setPrompt] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Middle panel state
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generated, setGenerated] = useState<typeof MOCK_GENERATED>([]);
+  const [activeTab, setActiveTab] = useState<"original" | "generated">("original");
+
+  // Right panel state
+  const [materials] = useState(MOCK_MATERIALS);
+
+  const handleUpload = (files: FileList | null) => {
+    if (!files) return;
+    const newImages = Array.from(files).slice(0, 5 - uploadedImages.length).map((file) => ({
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+    setUploadedImages((prev) => [...prev, ...newImages].slice(0, 5));
+  };
+
+  const removeImage = (index: number) => {
+    setUploadedImages((prev) => {
+      URL.revokeObjectURL(prev[index].preview);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const handleGenerate = async () => {
+    if (uploadedImages.length === 0) {
+      toast.error("Please upload at least one room photo.");
+      return;
+    }
+    if (!roomType) {
+      toast.error("Please select a room type.");
+      return;
+    }
+    if (!designStyle) {
+      toast.error("Please select a design style.");
+      return;
+    }
+
+    setIsGenerating(true);
+    setActiveTab("generated");
+
+    // Simulate AI generation delay
+    await new Promise((r) => setTimeout(r, 3000));
+
+    setGenerated(MOCK_GENERATED);
+    setIsGenerating(false);
+    toast.success("Designs generated successfully!");
+  };
+
+  const totalCost = materials.reduce((sum, m) => sum + m.total, 0);
+
+  return (
+    <div className="flex flex-col lg:flex-row h-full min-h-0 gap-0">
+      {/* ── Left Panel: Input Controls ── */}
+      <div className="w-full lg:w-80 xl:w-96 shrink-0 border-b lg:border-b-0 lg:border-r border-neutral-200 bg-white overflow-y-auto">
+        <div className="p-5 space-y-5">
+          <div>
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <Sparkles size={20} className="text-primary-500" />
+              Design Studio
+            </h2>
+            <p className="text-xs text-neutral-500 mt-1">Upload your room photos and generate AI-powered redesign concepts.</p>
+          </div>
+
+          {/* Image Upload */}
+          <div>
+            <label className="text-sm font-medium text-neutral-700 mb-2 block">Room Photos</label>
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-neutral-300 rounded-xl p-4 text-center cursor-pointer hover:border-primary-400 hover:bg-primary-50/30 transition-colors"
+            >
+              <Upload size={24} className="mx-auto text-neutral-400 mb-1" />
+              <p className="text-xs text-neutral-500">Click to upload (max 5)</p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => handleUpload(e.target.files)}
+              />
+            </div>
+
+            {uploadedImages.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mt-3">
+                {uploadedImages.map((img, i) => (
+                  <div key={i} className="relative group aspect-square rounded-lg overflow-hidden border border-neutral-200">
+                    <img src={img.preview} alt={`Upload ${i + 1}`} className="size-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(i)}
+                      className="absolute top-1 right-1 size-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Room Type */}
+          <div>
+            <label className="text-sm font-medium text-neutral-700 mb-2 block">
+              <Layers size={14} className="inline mr-1" />
+              Room Type
+            </label>
+            <div className="relative">
+              <select
+                value={roomType}
+                onChange={(e) => setRoomType(e.target.value)}
+                className="w-full appearance-none rounded-lg border border-neutral-300 bg-white px-3 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none"
+              >
+                <option value="">Select room type...</option>
+                {ROOM_TYPES.map((type) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+              <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Design Style */}
+          <div>
+            <label className="text-sm font-medium text-neutral-700 mb-2 block">
+              <Paintbrush size={14} className="inline mr-1" />
+              Design Style
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {DESIGN_STYLES.map((style) => (
+                <button
+                  key={style.id}
+                  type="button"
+                  onClick={() => setDesignStyle(style.id)}
+                  className={`rounded-lg border px-3 py-2 text-xs font-medium text-left transition-colors ${
+                    designStyle === style.id
+                      ? "border-primary-500 bg-primary-50 text-primary-700"
+                      : "border-neutral-200 text-neutral-600 hover:bg-neutral-50"
+                  }`}
+                >
+                  <span className="mr-1">{style.emoji}</span>
+                  {style.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Custom Prompt */}
+          <div>
+            <label className="text-sm font-medium text-neutral-700 mb-2 block">Custom Instructions</label>
+            <Textarea
+              rows={3}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="e.g. Keep the window layout, add an island with seating, use warm wood tones..."
+              className="text-sm"
+            />
+          </div>
+
+          {/* Generate Button */}
+          <Button
+            variant="primary"
+            className="w-full"
+            disabled={isGenerating}
+            onClick={handleGenerate}
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 size={16} className="mr-2 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Sparkles size={16} className="mr-2" />
+                Generate Design
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {/* ── Middle Panel: Design Preview ── */}
+      <div className="flex-1 min-w-0 min-h-[400px] bg-neutral-50 overflow-y-auto">
+        <div className="p-5">
+          {/* Tabs */}
+          <div className="flex gap-1 mb-4 rounded-lg bg-neutral-200/60 p-1 w-fit">
+            <button
+              type="button"
+              onClick={() => setActiveTab("original")}
+              className={`rounded-md px-4 py-1.5 text-xs font-medium transition-colors ${
+                activeTab === "original" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500 hover:text-neutral-700"
+              }`}
+            >
+              Original ({uploadedImages.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("generated")}
+              className={`rounded-md px-4 py-1.5 text-xs font-medium transition-colors ${
+                activeTab === "generated" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500 hover:text-neutral-700"
+              }`}
+            >
+              Generated ({generated.length})
+            </button>
+          </div>
+
+          {/* Content */}
+          {activeTab === "original" ? (
+            uploadedImages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <ImageIcon size={48} className="text-neutral-300 mb-3" />
+                <p className="text-neutral-500 text-sm">Upload room photos to get started</p>
+                <p className="text-neutral-400 text-xs mt-1">Your original photos will appear here</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {uploadedImages.map((img, i) => (
+                  <div key={i} className="rounded-xl overflow-hidden border border-neutral-200 bg-white shadow-sm">
+                    <img src={img.preview} alt={`Original ${i + 1}`} className="w-full aspect-[4/3] object-cover" />
+                    <div className="px-3 py-2 text-xs text-neutral-500">Original Photo {i + 1}</div>
+                  </div>
+                ))}
+              </div>
+            )
+          ) : isGenerating ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="relative mb-4">
+                <div className="size-16 rounded-full border-4 border-primary-100 border-t-primary-500 animate-spin" />
+                <Sparkles size={20} className="absolute inset-0 m-auto text-primary-500" />
+              </div>
+              <p className="text-neutral-700 font-medium">Generating your designs...</p>
+              <p className="text-neutral-400 text-xs mt-1">This usually takes 15-30 seconds</p>
+            </div>
+          ) : generated.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <Sparkles size={48} className="text-neutral-300 mb-3" />
+              <p className="text-neutral-500 text-sm">No designs generated yet</p>
+              <p className="text-neutral-400 text-xs mt-1">Configure your preferences and click "Generate Design"</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {generated.map((design) => (
+                <div key={design.id} className="rounded-xl overflow-hidden border border-neutral-200 bg-white shadow-sm group">
+                  <div className="relative">
+                    <img loading="lazy" src={design.url} alt={design.label} className="w-full aspect-[4/3] object-cover" />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-end">
+                      <div className="w-full p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="primary" size="xs" className="w-full">
+                          Use This Design <ArrowRight size={14} className="ml-1" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="px-3 py-2 flex items-center justify-between">
+                    <span className="text-xs text-neutral-600 font-medium">{design.label}</span>
+                    <span className="text-[10px] text-primary-500 font-medium uppercase">AI Generated</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Right Panel: Materials & Cost ── */}
+      <div className="w-full lg:w-72 xl:w-80 shrink-0 border-t lg:border-t-0 lg:border-l border-neutral-200 bg-white overflow-y-auto">
+        <div className="p-5 space-y-4">
+          <div>
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <DollarSign size={16} className="text-emerald-500" />
+              Materials & Cost
+            </h3>
+            <p className="text-[11px] text-neutral-400 mt-0.5">Estimated materials based on design</p>
+          </div>
+
+          {generated.length === 0 ? (
+            <div className="py-10 text-center">
+              <DollarSign size={32} className="mx-auto text-neutral-200 mb-2" />
+              <p className="text-xs text-neutral-400">Generate a design to see estimated materials and costs</p>
+            </div>
+          ) : (
+            <>
+              {/* Materials List */}
+              <div className="space-y-2">
+                {materials.map((m, i) => (
+                  <div key={i} className="rounded-lg border border-neutral-100 bg-neutral-50 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-neutral-800 truncate">{m.name}</p>
+                        <p className="text-[11px] text-neutral-400 mt-0.5">{m.qty} &middot; {m.unit}</p>
+                      </div>
+                      <span className="text-xs font-semibold text-neutral-700 shrink-0">
+                        ${m.total.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Total */}
+              <div className="rounded-xl bg-primary-50 border border-primary-100 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-primary-800">Estimated Total</span>
+                  <span className="text-lg font-bold text-primary-700">${totalCost.toLocaleString()}</span>
+                </div>
+                <p className="text-[10px] text-primary-500 mt-1">Materials only — labor not included</p>
+              </div>
+
+              {/* Actions */}
+              <div className="space-y-2">
+                <Button variant="primary" size="sm" className="w-full">
+                  Save to Project
+                </Button>
+                <Button variant="outline" size="sm" className="w-full">
+                  Export as PDF
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default DesignStudio;

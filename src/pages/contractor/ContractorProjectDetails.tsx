@@ -461,7 +461,7 @@ const MilestoneStatusManager = ({ milestones, onUpdated }: MilestoneStatusManage
                       <div className="flex flex-wrap gap-2 items-center">
                         {currentPreviews.map((url, i) => (
                           <div key={i} className="relative group">
-                            <img src={url} alt={`Proof ${i + 1}`} className="size-16 rounded-lg object-cover border border-neutral-200" />
+                            <img loading="lazy" src={url} alt={`Proof ${i + 1}`} className="size-16 rounded-lg object-cover border border-neutral-200" />
                             <button
                               type="button"
                               onClick={() => removeProofFile(m._id, i)}

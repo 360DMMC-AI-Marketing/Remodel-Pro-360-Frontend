@@ -213,10 +213,9 @@ const LandingPage = () => {
                     className="text-primary-600 group-hover:text-white transition-colors duration-300 ease-in-out"
                   />
                 </div>
-                <h6 className="text-neutral-800 mb-2">AI Design Studio</h6>
+                <h6 className="text-neutral-800 mb-2">Instant Cost Estimates</h6>
                 <p className="text-neutral-500 text-sm">
-                  Generate unlimited design variations with AI. See your space
-                  transformed in seconds.
+                  Get accurate material and labor costs in real-time as you customize your design.
                 </p>
               </Card>
             </motion.div>
@@ -233,10 +232,9 @@ const LandingPage = () => {
                     className="text-primary-600 group-hover:text-white transition-colors duration-300 ease-in-out"
                   />
                 </div>
-                <h6 className="text-neutral-800 mb-2">AI Design Studio</h6>
+                <h6 className="text-neutral-800 mb-2">Milestone Payments</h6>
                 <p className="text-neutral-500 text-sm">
-                  Generate unlimited design variations with AI. See your space
-                  transformed in seconds.
+                  Secure escrow with AI-verified milestone completion. Pay only for work done.
                 </p>
               </Card>
             </motion.div>
@@ -253,10 +251,9 @@ const LandingPage = () => {
                     className="text-primary-600 group-hover:text-white transition-colors duration-300 ease-in-out"
                   />
                 </div>
-                <h6 className="text-neutral-800 mb-2">AI Design Studio</h6>
+                <h6 className="text-neutral-800 mb-2">Voice Design Assistant</h6>
                 <p className="text-neutral-500 text-sm">
-                  Generate unlimited design variations with AI. See your space
-                  transformed in seconds.
+                  Describe changes with your voice and see them applied instantly to your design.
                 </p>
               </Card>
             </motion.div>

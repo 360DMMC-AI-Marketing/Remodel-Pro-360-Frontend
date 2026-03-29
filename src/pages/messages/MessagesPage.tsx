@@ -1078,7 +1078,7 @@ const MessagesPage = () => {
                       onClick={() => setPreviewImage(file.url)}
                       className="aspect-square rounded-lg overflow-hidden hover:ring-2 hover:ring-primary-400 transition-all"
                     >
-                      <img src={file.url} alt={file.name} className="size-full object-cover" />
+                      <img loading="lazy" src={file.url} alt={file.name} className="size-full object-cover" />
                     </button>
                   ))}
                 </div>

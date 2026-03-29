@@ -1254,7 +1254,7 @@ const Project = () => {
                                   }}
                                   className="size-16 rounded-lg overflow-hidden border border-neutral-200 hover:ring-2 hover:ring-primary-400 transition-all"
                                 >
-                                  <img src={getImageUrl(img)} alt={`Proof ${i + 1}`} className="size-full object-cover" />
+                                  <img loading="lazy" src={getImageUrl(img)} alt={`Proof ${i + 1}`} className="size-full object-cover" />
                                 </button>
                               ))}
                             </div>
@@ -1270,6 +1270,11 @@ const Project = () => {
                             Dispute
                           </Button>
                         </div>
+                      )}
+                      {m.status === "paid" && (
+                        <Button size="xs" variant="ghost" onClick={() => paymentService.downloadReceipt(m._id)}>
+                          Receipt
+                        </Button>
                       )}
                       {m.status === "approved" && (
                         <Button size="xs" variant="outline" disabled={busy} onClick={async () => {

@@ -16,4 +16,9 @@ export default defineConfig({
   css: {
     devSourcemap: true,
   },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/__tests__/setup.ts',
+  },
 });

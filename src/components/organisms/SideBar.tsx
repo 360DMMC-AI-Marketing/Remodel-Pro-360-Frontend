@@ -22,12 +22,12 @@ import { Link, useLocation } from "react-router-dom";
 
 const homeownerLinks = [
   { to: "/homeowner/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/", label: "Design Studio", icon: Palette },
+  { to: "/homeowner/design-studio", label: "Design Studio", icon: Palette },
   { to: "/homeowner/projects", label: "Projects", icon: FolderOpen },
   { to: "/homeowner/contractors", label: "Find Contractors", icon: Search },
   { to: "/homeowner/messages", label: "Messages", icon: MessageSquare },
   { to: "/homeowner/payments", label: "Payment", icon: CreditCard },
-  { to: "/", label: "Settings", icon: Settings },
+  { to: "/homeowner/settings", label: "Settings", icon: Settings },
 ];
 
 const contractorLinks = [

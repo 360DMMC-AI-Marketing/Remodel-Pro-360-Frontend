@@ -842,7 +842,7 @@ const ContractorProfile = () => {
               <div className="grid grid-cols-3 gap-2">
                 {portfolioPreviews.map((url, i) => (
                   <div key={i} className="relative group rounded-lg overflow-hidden aspect-square">
-                    <img src={url} alt="" className="w-full h-full object-cover" />
+                    <img loading="lazy" src={url} alt="" className="w-full h-full object-cover" />
                     <button
                       type="button"
                       onClick={() => removePortfolioImage(i)}
@@ -895,7 +895,7 @@ const ContractorProfile = () => {
                   <div className="grid grid-cols-3 gap-2 mb-2">
                     {item.images.map((img, i) => (
                       <div key={i} className="rounded-lg overflow-hidden aspect-square">
-                        <img src={getImageUrl(img)} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        <img loading="lazy" src={getImageUrl(img)} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                       </div>
                     ))}
                   </div>

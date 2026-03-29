@@ -391,7 +391,7 @@ const AdminDashboard = () => {
                         }}
                         className="aspect-square rounded-lg overflow-hidden border border-gray-200 hover:ring-2 hover:ring-indigo-400 transition-all"
                       >
-                        <img src={getImageUrl(img)} alt={`Proof ${i + 1}`} className="size-full object-cover" />
+                        <img loading="lazy" src={getImageUrl(img)} alt={`Proof ${i + 1}`} className="size-full object-cover" />
                       </button>
                     ))}
                   </div>

@@ -76,4 +76,27 @@ export const paymentService = {
     const response = await api.get("/payments/my", { params: { page, limit } });
     return response.data as MyPaymentsResponse;
   },
+
+  getContractorEarnings: async (page = 1, limit = 20) => {
+    const response = await api.get("/payments/contractor/earnings", { params: { page, limit } });
+    return response.data as {
+      payments: PaymentRecord[];
+      summary: { totalEarned: number; totalPending: number; totalFees: number };
+      total: number;
+      page: number;
+      totalPages: number;
+    };
+  },
+
+  downloadReceipt: async (milestoneId: string) => {
+    const response = await api.get(`/payments/receipt/${milestoneId}`, {
+      responseType: "blob",
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `receipt-${milestoneId}.pdf`;
+    link.click();
+    window.URL.revokeObjectURL(url);
+  },
 };

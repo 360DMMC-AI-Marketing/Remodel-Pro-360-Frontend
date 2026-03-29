@@ -3,6 +3,7 @@ import { getProjectsWithFilters } from "@/api/project";
 import { useAuth } from "@/stores/useAuth";
 import { Plus, Search } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useDebounce } from "@/hooks/useDebounce";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/molecules/Card";
 import { Skeleton } from "@/components/atoms/Skeleton";
@@ -30,6 +31,7 @@ const Projects = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearch = useDebounce(searchTerm, 300);
   const [statusFilter, setStatusFilter] = useState("all");
   const navigate = useNavigate();
 
@@ -41,7 +43,7 @@ const Projects = () => {
         const data = await getProjectsWithFilters({
           page: 1,
           limit: 100,
-          search: searchTerm.trim() || undefined,
+          search: debouncedSearch.trim() || undefined,
           status: statusFilter,
         });
         setProjects(Array.isArray(data?.projects) ? data.projects : []);
@@ -53,7 +55,7 @@ const Projects = () => {
     };
 
     fetchProjects();
-  }, [searchTerm, statusFilter]);
+  }, [debouncedSearch, statusFilter]);
 
   return (
     <div className="p-6 pt-16">
