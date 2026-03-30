@@ -111,7 +111,8 @@ const ProjectChat = ({
   const loadMessages = async () => {
     try {
       setLoading(true);
-      const data = await messageService.getProjectMessages(projectId, 1, 100);
+      const res = await messageService.getProjectMessages(projectId, 1, 100);
+      const data = Array.isArray(res) ? res : res.messages ?? [];
       const sorted = [...data].sort((a, b) => {
         const aTime = new Date(a.createdAt ?? 0).getTime();
         const bTime = new Date(b.createdAt ?? 0).getTime();

@@ -96,7 +96,7 @@ const ContractorProfile = () => {
       .catch(() => setVettingRequest(null));
   }, []);
 
-  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [, setIsUploadingAvatar] = useState(false);
   const [isRemovingAvatar, setIsRemovingAvatar] = useState(false);
   const [isDeleteAvatarDialogOpen, setIsDeleteAvatarDialogOpen] =
     useState(false);

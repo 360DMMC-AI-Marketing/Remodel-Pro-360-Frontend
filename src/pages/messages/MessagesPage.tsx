@@ -291,7 +291,7 @@ const MessagesPage = () => {
     const response = await getProjectsWithFilters({ page: 1, limit: 100 });
     return (response.projects ?? [])
       .map((project: RawProject) => toMessageProject(project))
-      .filter((project) => project.contractorId);
+      .filter((project: MessageProject) => project.contractorId);
   };
 
   const loadContractorProjects = async () => {

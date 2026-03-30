@@ -382,7 +382,7 @@ const Project = () => {
 
   const canCancel =
     project &&
-    !["cancelled", "completed", "in_progress"].includes(project.status) &&
+    !["cancelled", "completed", "in_progress"].includes(project.status ?? "") &&
     projectContract?.status !== "signed";
 
   const getContractorName = (bid: HomeownerBid) => {

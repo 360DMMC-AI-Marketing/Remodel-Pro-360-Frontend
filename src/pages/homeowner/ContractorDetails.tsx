@@ -24,8 +24,6 @@ import { reviewService, type Review } from "@/api/review";
 import { portfolioService, type PortfolioItem } from "@/api/portfolio";
 import { getImageUrl } from "@/lib/utils";
 
-const BASE_IMAGE_URL = "https://rp360-uploads.s3.us-east-1.amazonaws.com/";
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const StarRating = ({ rating, size = 14 }: { rating: number; size?: number }) => (

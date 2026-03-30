@@ -175,7 +175,7 @@ const AdminDashboard = () => {
                   cx="50%"
                   cy="50%"
                   outerRadius={90}
-                  label={({ status, count }) => `${status} (${count})`}
+                  label={({ payload }: any) => `${payload?.status} (${payload?.count})`}
                   labelLine={false}
                 >
                   {charts.projectsByStatus.map((entry, i) => (
@@ -211,7 +211,7 @@ const AdminDashboard = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `$${v}`} />
-                <Tooltip formatter={(value: number) => `$${value.toLocaleString()}`} />
+                <Tooltip formatter={(value: any) => `$${Number(value).toLocaleString()}`} />
                 <Area type="monotone" dataKey="revenue" stroke="#6366f1" fill="url(#colorRevenue)" name="Revenue" />
                 <Area type="monotone" dataKey="platformFees" stroke="#14b8a6" fill="url(#colorFees)" name="Platform Fees" />
               </AreaChart>
