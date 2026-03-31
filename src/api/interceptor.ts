@@ -47,8 +47,10 @@ const updateAuthTokens = (accessToken: string, refreshToken: string): void => {
   );
 };
 
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
 const api = axios.create({
-  baseURL: "http://localhost:3000/api",
+  baseURL: `${API_BASE}/api`,
   headers: {
     "Content-Type": "application/json",
   },
@@ -67,7 +69,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
         return null;
       }
 
-      const response = await axios.post("http://localhost:3000/api/auth/refresh", {
+      const response = await axios.post(`${API_BASE}/api/auth/refresh`, {
         refreshToken,
       });
 
