@@ -210,7 +210,7 @@ const ContractorProjects = () => {
   };
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="space-y-6 p-4 md:p-6 overflow-x-hidden">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold">Projects</h1>
@@ -281,7 +281,7 @@ const ContractorProjects = () => {
             return (
               <div
                 key={project._id}
-                className="rounded-xl border border-neutral-200 bg-white p-5 flex flex-col gap-3 hover:shadow-md transition-shadow"
+                className="rounded-xl border border-neutral-200 bg-white p-4 sm:p-5 flex flex-col gap-3 hover:shadow-md transition-shadow min-w-0"
               >
                 {/* Top row */}
                 <div className="flex items-start justify-between gap-2">
@@ -304,14 +304,14 @@ const ContractorProjects = () => {
                 </p>
 
                 {/* Meta */}
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-600">
-                  <span className="inline-flex items-center gap-1">
-                    <DollarSign size={12} className="text-neutral-400" />
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-600 min-w-0">
+                  <span className="inline-flex items-center gap-1 truncate">
+                    <DollarSign size={12} className="text-neutral-400 shrink-0" />
                     {getBudgetText(project)}
                   </span>
                   {(project.address?.city || project.address?.state) && (
-                    <span className="inline-flex items-center gap-1">
-                      <MapPin size={12} className="text-neutral-400" />
+                    <span className="inline-flex items-center gap-1 truncate">
+                      <MapPin size={12} className="text-neutral-400 shrink-0" />
                       {[project.address.city, project.address.state].filter(Boolean).join(", ")}
                     </span>
                   )}
@@ -319,19 +319,19 @@ const ContractorProjects = () => {
 
                 {/* Bid info or actions */}
                 {existingBid ? (
-                  <div className="mt-auto flex items-center justify-between rounded-lg bg-neutral-50 px-3 py-2.5 border border-neutral-100">
-                    <div className="flex items-center gap-3">
-                      <div>
+                  <div className="mt-auto flex flex-wrap items-center justify-between gap-2 rounded-lg bg-neutral-50 px-3 py-2.5 border border-neutral-100">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="min-w-0">
                         <p className="text-xs text-neutral-500">Your bid</p>
                         <p className="text-sm font-semibold text-neutral-800">
                           ${existingBid.amount.toLocaleString()}
                         </p>
                       </div>
-                      <Badge variant={bidBadgeVariant(existingBid.status)} className="capitalize text-[10px]">
+                      <Badge variant={bidBadgeVariant(existingBid.status)} className="capitalize text-[10px] shrink-0">
                         {existingBid.status}
                       </Badge>
                     </div>
-                    <Link to={`/contractor/projects/${project._id}`}>
+                    <Link to={`/contractor/projects/${project._id}`} className="shrink-0">
                       <Button variant="ghost" size="xs">
                         <Eye size={14} className="mr-1" /> View
                       </Button>
@@ -372,7 +372,7 @@ const ContractorProjects = () => {
               aria-label="Close"
               onClick={() => setDialogProject(null)}
             />
-            <div className="relative z-10 w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+            <div className="relative z-10 w-full max-w-lg rounded-2xl bg-white p-4 sm:p-6 shadow-xl max-h-[90vh] overflow-y-auto">
               <button
                 type="button"
                 className="absolute right-4 top-4 rounded-full p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
