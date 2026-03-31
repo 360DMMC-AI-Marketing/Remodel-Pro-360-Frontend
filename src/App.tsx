@@ -25,6 +25,7 @@ import ContractorProfile from "./pages/contractor/ContractorProfile";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import ContractorVetting from "./pages/admin/ContractorVetting";
 import AdminUsers from "./pages/admin/AdminUsers";
+import ContractorLeads from "./pages/contractor/ContractorLeads";
 import ContractorProjects from "./pages/contractor/ContractorProjects";
 import ContractorEarnings from "./pages/contractor/ContractorEarnings";
 import ContractorProjectDetails from "./pages/contractor/ContractorProjectDetails";
@@ -115,6 +116,7 @@ function App() {
         <Route element={<ProtectedRoutes allowedRole="contractor" />}>
           <Route path="/contractor" element={<DashboardLayout />} >
             <Route path="/contractor/dashboard" element={<ContractorDashboard />} />
+            <Route path="/contractor/leads" element={<ContractorLeads />} />
             <Route path="/contractor/profile" element={<ContractorProfile />} />
             <Route path="/contractor/projects" element={<ContractorProjects />} />
             <Route path="/contractor/earnings" element={<ContractorEarnings />} />
