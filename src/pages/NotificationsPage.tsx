@@ -3,6 +3,7 @@ import { Bell, Check, CheckCheck, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { notificationService, type AppNotification } from "@/api/notification";
 import { bidService } from "@/api/bid";
+import { contractService } from "@/api/contract";
 import { Button } from "@/components/atoms/Button";
 import { useAuth } from "@/stores/useAuth";
 import { Skeleton } from "@/components/atoms/Skeleton";
@@ -62,9 +63,7 @@ const NotificationsPage = () => {
     }
     if (notification.type === "VETTING_STATUS") return "/contractor/profile";
     if (
-      (notification.type === "BID_ACCEPTED" ||
-        notification.type === "BID_REJECTED" ||
-        notification.type === "PROJECT_UPDATE") &&
+      (notification.type === "BID_ACCEPTED" || notification.type === "BID_REJECTED") &&
       role === "contractor"
     ) {
       if (!notification.relatedId) return "/contractor/projects";
@@ -73,9 +72,37 @@ const NotificationsPage = () => {
         const projectId = typeof bid.projectId === "string" ? bid.projectId : bid.projectId?._id;
         if (projectId) return `/contractor/projects/${projectId}`;
       } catch {
-        return `/contractor/projects/${notification.relatedId}`;
+        return "/contractor/projects";
       }
       return "/contractor/projects";
+    }
+    if (notification.type === "PROJECT_UPDATE" && role === "contractor") {
+      if (!notification.relatedId) return "/contractor/projects";
+      try {
+        // relatedId may be a contract ID (from contract notifications) or a bid ID
+        const contract = await contractService.getContractById(notification.relatedId);
+        if (contract?.projectId) return `/contractor/projects/${contract.projectId}`;
+      } catch {
+        // Not a contract ID — try as bid ID
+        try {
+          const bid = await bidService.getBidById(notification.relatedId);
+          const projectId = typeof bid.projectId === "string" ? bid.projectId : bid.projectId?._id;
+          if (projectId) return `/contractor/projects/${projectId}`;
+        } catch {
+          return "/contractor/projects";
+        }
+      }
+      return "/contractor/projects";
+    }
+    if (notification.type === "PROJECT_UPDATE" && role === "homeowner") {
+      if (!notification.relatedId) return "/homeowner/projects";
+      try {
+        const contract = await contractService.getContractById(notification.relatedId);
+        if (contract?.projectId) return `/homeowner/projects/${contract.projectId}`;
+      } catch {
+        return "/homeowner/projects";
+      }
+      return "/homeowner/projects";
     }
     if (role === "homeowner") return "/homeowner/projects";
     if (role === "contractor") return "/contractor/projects";

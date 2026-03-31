@@ -691,9 +691,13 @@ const ContractorProjectDetails = () => {
               </div>
             )}
             {projectContract.status === "pending_signatures" && !hasContractorSigned && (
-              <Button size="xs" variant="primary" disabled={isSigningContract} onClick={() => void handleSignContract()}>
-                {isSigningContract ? "Signing..." : "Sign Contract"}
-              </Button>
+              milestones.length === 0 ? (
+                <p className="text-sm text-amber-600 font-medium">You must set milestones before signing the contract.</p>
+              ) : (
+                <Button size="xs" variant="primary" disabled={isSigningContract} onClick={() => void handleSignContract()}>
+                  {isSigningContract ? "Signing..." : "Sign Contract"}
+                </Button>
+              )
             )}
           </div>
         )}

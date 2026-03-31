@@ -4,6 +4,7 @@ import { useAuth } from "@/stores/useAuth";
 import { bidService, type BidRecord } from "@/api/bid";
 import { connectService, type ContractorConnectStatus } from "@/api/connect";
 import { messageService } from "@/api/message";
+import { paymentService } from "@/api/payment";
 import { Badge } from "@/components/atoms/Badge";
 import { Skeleton } from "@/components/atoms/Skeleton";
 import { Button } from "@/components/atoms/Button";
@@ -23,20 +24,23 @@ const ContractorDashboard = () => {
   const [bids, setBids] = useState<BidRecord[]>([]);
   const [connectStatus, setConnectStatus] = useState<ContractorConnectStatus | null>(null);
   const [unread, setUnread] = useState(0);
+  const [totalEarned, setTotalEarned] = useState(0);
   const [loading, setLoading] = useState(true);
   const [onboardingLoading, setOnboardingLoading] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [bidsRes, msgRes, connect] = await Promise.all([
+        const [bidsRes, msgRes, connect, earningsRes] = await Promise.all([
           bidService.getMyBids(),
           messageService.getUnreadCounts().catch(() => ({ total: 0 })),
           connectService.getMyStatus().catch(() => null),
+          paymentService.getContractorEarnings(1, 1).catch(() => ({ summary: { totalEarned: 0 } })),
         ]);
         setBids(bidsRes);
         setUnread(msgRes.total);
         setConnectStatus(connect);
+        setTotalEarned(earningsRes.summary.totalEarned);
       } catch {
         toast.error("Failed to load dashboard data");
       } finally {
@@ -60,12 +64,11 @@ const ContractorDashboard = () => {
 
   const activeBids = bids.filter((b) => ["submitted", "shortlisted"].includes(b.status));
   const acceptedBids = bids.filter((b) => b.status === "accepted");
-  const totalEarnings = acceptedBids.reduce((sum, b) => sum + (b.amount ?? 0), 0);
 
   const kpis = [
     { label: "Active Bids", value: activeBids.length, icon: Briefcase, color: "text-indigo-600", bg: "bg-indigo-50" },
     { label: "Won Projects", value: acceptedBids.length, icon: Clock, color: "text-teal-600", bg: "bg-teal-50" },
-    { label: "Total Earnings", value: `$${totalEarnings.toLocaleString()}`, icon: DollarSign, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { label: "Total Earnings", value: `$${totalEarned.toLocaleString()}`, icon: DollarSign, color: "text-emerald-600", bg: "bg-emerald-50" },
     { label: "Unread Messages", value: unread, icon: MessageSquare, color: "text-amber-600", bg: "bg-amber-50" },
   ];
 
