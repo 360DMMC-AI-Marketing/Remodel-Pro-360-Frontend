@@ -386,7 +386,7 @@
 
   /* Card */
   .card {
-    @apply bg-white p-6 rounded-lg border border-neutral-200 shadow-sm;
+    @apply bg-white p-4 sm:p-6 rounded-lg border border-neutral-200 shadow-sm;
   }
 
   .card-hover {

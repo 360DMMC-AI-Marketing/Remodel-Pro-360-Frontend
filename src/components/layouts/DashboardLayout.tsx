@@ -89,7 +89,7 @@ const DashboardLayout = () => {
 
       {/* Main area */}
       <div
-        className={`flex flex-1 flex-col min-h-screen transition-all duration-300 ${isCollapsed ? "lg:ml-sidebar-collapsed" : "lg:ml-sidebar"}`}
+        className={`flex flex-1 flex-col min-h-screen min-w-0 overflow-x-hidden transition-all duration-300 ${isCollapsed ? "lg:ml-sidebar-collapsed" : "lg:ml-sidebar"}`}
       >
         {/* Top header bar */}
         <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-4 lg:px-6">
@@ -147,7 +147,7 @@ const DashboardLayout = () => {
         </header>
 
         {/* Page content */}
-        <div className="flex-1 overflow-y-auto bg-neutral-100">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden bg-neutral-100">
           <Outlet />
         </div>
       </div>
