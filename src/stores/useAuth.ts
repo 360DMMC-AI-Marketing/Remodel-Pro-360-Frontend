@@ -60,7 +60,6 @@ export const useAuth = create<AuthState>()(
         set({ isLoading: true });
         try {
           const response = await authService.login(data);
-          console.log(response)
           set({
             user: response.user,
             token: response.tokens.accessToken,

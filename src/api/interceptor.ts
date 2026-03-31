@@ -9,6 +9,7 @@ type PersistedAuthState = {
 
 type RetryableRequestConfig = {
   _retry?: boolean;
+  url?: string;
   headers?: Record<string, string>;
 };
 
@@ -110,7 +111,10 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config as RetryableRequestConfig | undefined;
 
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+    const url = originalRequest?.url ?? "";
+    const isAuthRoute = url.includes("/auth/login") || url.includes("/auth/register") || url.includes("/auth/refresh");
+
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthRoute) {
       originalRequest._retry = true;
 
       try {

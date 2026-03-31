@@ -1,6 +1,6 @@
 import { Button } from "@/components/atoms/Button";
 import { Input } from "@/components/atoms/Input";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { loginSchema, type LoginFormValues } from "@/schemas/auth";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,6 +15,17 @@ import logo from "@/assets/logo-transparent.png"
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [googleBtnWidth, setGoogleBtnWidth] = useState(400);
+  const googleContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = googleContainerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setGoogleBtnWidth(Math.floor(entry.contentRect.width));
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
   const navigate = useNavigate();
   const { login, googleLogin, isLoading } = useAuth();
   const {
@@ -34,8 +45,8 @@ const Login = () => {
       const response = await login(data);
       navigate(`/${response?.user.role}/dashboard`);
     } catch (error) {
-      console.log(error);
-      toast.error("Invalid email or password");
+      const err = error as { response?: { data?: { error?: string } } };
+      toast.error(err?.response?.data?.error || "Invalid email or password. Please try again.");
     }
   };
   return (
@@ -136,16 +147,19 @@ const Login = () => {
               <div className="flex-1 h-px bg-neutral-200" />
             </div>
 
-            <div ref={(el) => { if (el) setGoogleBtnWidth(el.offsetWidth); }} className="w-full">
+            <div ref={googleContainerRef} className="w-full">
               <GoogleLogin
                 onSuccess={(credentialResponse) => {
                 if (credentialResponse.credential) {
                   googleLogin(credentialResponse.credential)
-                  .then((res) => navigate(`/${res?.user.role}/dashboard`))
-                  .catch(() => toast.error("Google sign-in failed"));
+                  .then((res) => {
+                    toast.success(`Welcome back, ${res?.user.firstName}!`);
+                    navigate(`/${res?.user.role}/dashboard`);
+                  })
+                  .catch(() => toast.error("Google sign-in failed. Please try again."));
                 }
                 }}
-                onError={() => toast.error("Google sign-in failed")}
+                onError={() => toast.error("Google sign-in failed. Please try again.")}
                 size="large"
                 width={googleBtnWidth}
                 text="signin_with"

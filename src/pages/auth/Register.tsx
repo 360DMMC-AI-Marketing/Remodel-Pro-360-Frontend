@@ -1,7 +1,7 @@
 import { Button } from "@/components/atoms/Button";
 import { Input } from "@/components/atoms/Input";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { registerSchema, type RegisterFormValues } from "@/schemas/auth";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,6 +20,17 @@ const Register = () => {
   const navigate = useNavigate();
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [googleBtnWidth, setGoogleBtnWidth] = useState(400);
+  const googleContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = googleContainerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setGoogleBtnWidth(Math.floor(entry.contentRect.width));
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
   const {
     register,
     handleSubmit,
@@ -282,16 +293,19 @@ const Register = () => {
               <div className="flex-1 h-px bg-neutral-200" />
             </div>
 
-            <div ref={(el) => { if (el) setGoogleBtnWidth(el.offsetWidth); }} className="w-full">
+            <div ref={googleContainerRef} className="w-full">
               <GoogleLogin
                 onSuccess={(credentialResponse) => {
                   if (credentialResponse.credential) {
                     googleLogin(credentialResponse.credential)
-                      .then((res) => navigate(`/${res?.user.role}/dashboard`))
-                      .catch(() => toast.error("Google sign-up failed"));
+                      .then((res) => {
+                        toast.success(`Welcome, ${res?.user.firstName}!`);
+                        navigate(`/${res?.user.role}/dashboard`);
+                      })
+                      .catch(() => toast.error("Google sign-up failed. Please try again."));
                   }
                 }}
-                onError={() => toast.error("Google sign-up failed")}
+                onError={() => toast.error("Google sign-up failed. Please try again.")}
                 size="large"
                 width={googleBtnWidth}
                 text="signup_with"
