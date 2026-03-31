@@ -210,7 +210,7 @@ const ContractorProjects = () => {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 md:p-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold">Projects</h1>
@@ -388,7 +388,7 @@ const ContractorProjects = () => {
               </p>
 
               <div className="mt-5 space-y-4">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-medium text-neutral-700 mb-1 block">
                       <DollarSign size={12} className="inline mr-0.5" /> Bid Amount *

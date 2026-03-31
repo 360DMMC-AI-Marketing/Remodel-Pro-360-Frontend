@@ -38,7 +38,7 @@ const ContractorEarnings = () => {
   ];
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 md:p-6">
       <div>
         <h1 className="text-2xl font-bold">Earnings</h1>
         <p className="text-sm text-neutral-500 mt-1">Track your milestone payouts and fees.</p>
@@ -65,10 +65,12 @@ const ContractorEarnings = () => {
         ))}
       </div>
 
-      {/* Transactions Table */}
+      {/* Transactions */}
       <div>
         <h2 className="text-lg font-semibold mb-4">Recent Transactions</h2>
-        <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white">
+
+        {/* Desktop Table */}
+        <div className="hidden md:block overflow-x-auto rounded-xl border border-neutral-200 bg-white">
           <table className="min-w-full divide-y divide-neutral-200">
             <thead className="bg-neutral-50">
               <tr>
@@ -128,6 +130,46 @@ const ContractorEarnings = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="md:hidden space-y-3">
+          {loading ? (
+            Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-24 rounded-xl" />
+            ))
+          ) : payments.length === 0 ? (
+            <div className="rounded-xl border border-neutral-200 bg-white p-8 text-center text-neutral-400">
+              No earnings yet. Complete milestones to receive payouts.
+            </div>
+          ) : (
+            payments.map((p) => {
+              const project = typeof p.projectId === "object" ? p.projectId : null;
+              const milestone = typeof p.milestoneId === "object" ? p.milestoneId : null;
+              return (
+                <div key={p._id} className="rounded-xl border border-neutral-200 bg-white p-4 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium text-neutral-800 truncate">{project?.title ?? "—"}</p>
+                    <Badge
+                      variant={p.status === "succeeded" ? "success" : p.status === "pending" ? "warning" : "error"}
+                      className="capitalize text-[11px] shrink-0"
+                    >
+                      {p.status}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-neutral-500">{milestone?.name ?? "—"}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-emerald-600">${p.amount.toLocaleString()}</span>
+                    <span className="text-xs text-neutral-400">
+                      {p.completedAt
+                        ? new Date(p.completedAt).toLocaleDateString()
+                        : new Date(p._id.substring(0, 8)).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
 
         {/* Pagination */}

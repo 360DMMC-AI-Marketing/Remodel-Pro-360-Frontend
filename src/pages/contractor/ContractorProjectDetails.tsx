@@ -316,8 +316,8 @@ const MilestoneEditor = ({ projectId, roomType, onSaved }: MilestoneEditorProps)
       </div>
 
       {/* Controls */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           {drafts.length < 5 && (
             <Button type="button" variant="outline" size="sm" onClick={addMilestone} className="flex items-center gap-1">
               <Plus size={14} /> Add Milestone
@@ -327,7 +327,7 @@ const MilestoneEditor = ({ projectId, roomType, onSaved }: MilestoneEditorProps)
             Total: {percentSum}% {percentSum === 100 ? "✓" : `(need ${100 - percentSum}% more)`}
           </span>
         </div>
-        <Button variant="primary" size="sm" disabled={saving || percentSum !== 100} onClick={() => void handleSave()}>
+        <Button variant="primary" size="sm" className="w-full sm:w-auto" disabled={saving || percentSum !== 100} onClick={() => void handleSave()}>
           {saving ? "Saving..." : "Save Milestones"}
         </Button>
       </div>
@@ -424,8 +424,8 @@ const MilestoneStatusManager = ({ milestones, onUpdated }: MilestoneStatusManage
           const currentPreviews = proofPreviews[m._id] ?? [];
           const currentFiles = proofFiles[m._id] ?? [];
           return (
-            <div key={m._id} className="rounded-xl border border-neutral-200 p-4">
-              <div className="flex items-start justify-between gap-3">
+            <div key={m._id} className="rounded-xl border border-neutral-200 p-3 sm:p-4">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-sm text-neutral-900">{m.order}. {m.name}</span>
@@ -611,7 +611,7 @@ const ContractorProjectDetails = () => {
     : "Not specified";
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 md:p-6">
       <Link to="/contractor/projects">
         <Button variant="ghost" size="sm" className="flex items-center gap-2">
           <ArrowLeft className="size-4" /> Back to Projects
@@ -664,7 +664,7 @@ const ContractorProjectDetails = () => {
       )}
 
       {/* Contract Signature */}
-      <Card>
+      <Card className="mt-10">
         <h6 className="mb-3">Contract Signature</h6>
         {loadingContract ? (
           <Skeleton variant="text" className="w-full h-12" />
@@ -682,9 +682,9 @@ const ContractorProjectDetails = () => {
                 <p className="text-sm font-medium text-neutral-700 mb-2">Milestones included ({milestones.length}):</p>
                 <div className="space-y-1">
                   {milestones.map((m) => (
-                    <div key={m._id} className="flex items-center justify-between text-xs text-neutral-600 rounded-lg bg-neutral-50 px-3 py-2">
-                      <span>{m.order}. {m.name}</span>
-                      <span className="text-neutral-400">{m.percentOfTotal}% · ${m.paymentAmount.toLocaleString()}</span>
+                    <div key={m._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs text-neutral-600 rounded-lg bg-neutral-50 px-3 py-2">
+                      <span className="truncate">{m.order}. {m.name}</span>
+                      <span className="text-neutral-400 shrink-0">{m.percentOfTotal}% · ${m.paymentAmount.toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
@@ -720,8 +720,8 @@ const ContractorProjectDetails = () => {
       ) : (
         <>
           <Card className="space-y-4 mt-10">
-            <div className="flex items-center gap-3">
-              <h4>{project?.title}</h4>
+            <div className="flex flex-wrap items-center gap-3">
+              <h4 className="text-lg md:text-xl">{project?.title}</h4>
               <Badge variant={projectStatusVariant(project?.status)}>{(project?.status ?? "bidding").replace(/_/g, " ")}</Badge>
             </div>
             <p className="text-neutral-700">{project?.description || "No description provided."}</p>
@@ -746,13 +746,13 @@ const ContractorProjectDetails = () => {
             {images.length === 0 ? (
               <p className="text-neutral-600">No images uploaded for this project.</p>
             ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {images.map((image, index) => (
                   <img
                     key={`${image.url}-${index}`}
                     src={`${BASE_IMAGE_URL}${image.url}`}
                     alt={`Project image ${index + 1}`}
-                    className="h-48 w-full rounded-lg object-cover cursor-pointer"
+                    className="h-32 sm:h-48 w-full rounded-lg object-cover cursor-pointer"
                     onClick={() => setActiveImageIndex(index)}
                   />
                 ))}
