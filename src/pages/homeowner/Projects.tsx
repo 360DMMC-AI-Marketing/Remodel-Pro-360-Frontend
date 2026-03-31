@@ -88,7 +88,7 @@ const Projects = () => {
         <select
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value)}
-          className="h-10 rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-700"
+          className="appearance-none rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
         >
           <option value="all">All statuses</option>
           <option value="draft">Draft</option>

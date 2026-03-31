@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
+import { Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/atoms/Button";
 import { Input } from "@/components/atoms/Input";
 import { Skeleton } from "@/components/atoms/Skeleton";
 import { adminService, type AdminUser } from "@/api/admin";
+import { useDebounce } from "@/hooks/useDebounce";
 import { getImageUrl } from "@/lib/utils";
 
 const USERS_PER_PAGE = 15;
@@ -14,15 +16,15 @@ const AdminUsers = () => {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [roleFilter, setRoleFilter] = useState("");
-  const [search, setSearch] = useState("");
-  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearch = useDebounce(searchTerm, 300);
 
   const fetchUsers = useCallback(() => {
     setLoading(true);
     adminService
       .getUsers({
         role: roleFilter || undefined,
-        search: search || undefined,
+        search: debouncedSearch || undefined,
         page,
         limit: USERS_PER_PAGE,
       })
@@ -32,16 +34,11 @@ const AdminUsers = () => {
       })
       .catch(() => toast.error("Failed to load users"))
       .finally(() => setLoading(false));
-  }, [roleFilter, search, page]);
+  }, [roleFilter, debouncedSearch, page]);
 
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
-
-  const handleSearch = () => {
-    setSearch(searchInput);
-    setPage(1);
-  };
 
   const totalPages = Math.max(1, Math.ceil(total / USERS_PER_PAGE));
 
@@ -66,7 +63,7 @@ const AdminUsers = () => {
             setRoleFilter(e.target.value);
             setPage(1);
           }}
-          className="input w-full sm:w-44"
+          className="w-full sm:w-44 appearance-none rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
         >
           <option value="">All Roles</option>
           <option value="homeowner">Homeowner</option>
@@ -74,17 +71,14 @@ const AdminUsers = () => {
           <option value="admin">Admin</option>
         </select>
 
-        <div className="flex gap-2 flex-1">
+        <div className="relative flex-1">
+          <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
           <Input
             placeholder="Search by name or email..."
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className="flex-1"
+            value={searchTerm}
+            onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+            className="pl-9 w-full"
           />
-          <Button variant="outline" size="md" onClick={handleSearch}>
-            Search
-          </Button>
         </div>
       </div>
 

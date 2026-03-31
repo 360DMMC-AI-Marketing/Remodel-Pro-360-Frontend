@@ -207,17 +207,20 @@ const ContractorVetting = () => {
         </p>
       </div>
 
-      <div className="mt-5 flex gap-2 flex-wrap">
+      <div className="mt-5 flex gap-1.5 flex-wrap">
         {TABS.map((tab) => (
-          <Button
+          <button
             key={tab.value}
-            variant={filter === tab.value ? "primary" : "ghost"}
-            size="sm"
-            className="border"
+            type="button"
             onClick={() => setFilter(tab.value)}
+            className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+              filter === tab.value
+                ? "bg-primary-600 text-white"
+                : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+            }`}
           >
             {tab.label}
-          </Button>
+          </button>
         ))}
       </div>
 

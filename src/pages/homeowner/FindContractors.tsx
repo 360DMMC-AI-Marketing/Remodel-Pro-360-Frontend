@@ -67,7 +67,7 @@ const FindContractors = () => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
       setPage(1);
-    }, 400);
+    }, 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
