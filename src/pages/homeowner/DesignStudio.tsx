@@ -27,14 +27,16 @@ const ROOM_TYPES = [
 ];
 
 const DESIGN_STYLES = [
-  { id: "modern", label: "Modern", emoji: "🏢" },
-  { id: "minimalist", label: "Minimalist", emoji: "⬜" },
-  { id: "industrial", label: "Industrial", emoji: "🏗️" },
-  { id: "scandinavian", label: "Scandinavian", emoji: "🌿" },
-  { id: "bohemian", label: "Bohemian", emoji: "🎨" },
-  { id: "traditional", label: "Traditional", emoji: "🏛️" },
-  { id: "mid-century", label: "Mid-Century", emoji: "🪑" },
-  { id: "farmhouse", label: "Farmhouse", emoji: "🌾" },
+  { id: "modern", label: "Modern", emoji: "🏢", desc: "Clean lines, neutral tones, sleek furniture" },
+  { id: "farmhouse", label: "Farmhouse", emoji: "🌾", desc: "Warm wood, shiplap, rustic charm" },
+  { id: "scandinavian", label: "Scandinavian", emoji: "🌿", desc: "Bright, airy, light wood, cozy textiles" },
+  { id: "industrial", label: "Industrial", emoji: "🏗️", desc: "Exposed brick, metal, urban loft feel" },
+  { id: "coastal", label: "Coastal", emoji: "🌊", desc: "Ocean blues, sandy tones, rattan accents" },
+  { id: "minimalist", label: "Minimalist", emoji: "⬜", desc: "Essentials only, uncluttered, serene" },
+  { id: "bohemian", label: "Bohemian", emoji: "🎨", desc: "Eclectic, layered patterns, global vibes" },
+  { id: "mid-century", label: "Mid-Century", emoji: "🪑", desc: "Retro shapes, teak wood, bold accents" },
+  { id: "traditional", label: "Traditional", emoji: "🏛️", desc: "Rich fabrics, molding, refined elegance" },
+  { id: "japandi", label: "Japandi", emoji: "🍵", desc: "Japanese minimalism meets Nordic warmth" },
 ];
 
 // Mock generated designs for demo
@@ -195,14 +197,19 @@ const DesignStudio = () => {
                   key={style.id}
                   type="button"
                   onClick={() => setDesignStyle(style.id)}
-                  className={`rounded-lg border px-3 py-2 text-xs font-medium text-left transition-colors ${
+                  className={`rounded-lg border px-3 py-2.5 text-left transition-colors ${
                     designStyle === style.id
                       ? "border-primary-500 bg-primary-50 text-primary-700"
                       : "border-neutral-200 text-neutral-600 hover:bg-neutral-50"
                   }`}
                 >
-                  <span className="mr-1">{style.emoji}</span>
-                  {style.label}
+                  <span className="text-xs font-medium">
+                    <span className="mr-1">{style.emoji}</span>
+                    {style.label}
+                  </span>
+                  <p className={`text-[10px] mt-0.5 leading-tight ${designStyle === style.id ? "text-primary-500" : "text-neutral-400"}`}>
+                    {style.desc}
+                  </p>
                 </button>
               ))}
             </div>
