@@ -19,6 +19,7 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [googleBtnWidth, setGoogleBtnWidth] = useState(400);
   const {
     register,
     handleSubmit,
@@ -281,20 +282,22 @@ const Register = () => {
               <div className="flex-1 h-px bg-neutral-200" />
             </div>
 
-            <GoogleLogin
-              onSuccess={(credentialResponse) => {
-                if (credentialResponse.credential) {
-                  googleLogin(credentialResponse.credential)
-                    .then((res) => navigate(`/${res?.user.role}/dashboard`))
-                    .catch(() => toast.error("Google sign-up failed"));
-                }
-              }}
-              onError={() => toast.error("Google sign-up failed")}
-              size="large"
-              width="100%"
-              text="signup_with"
-              shape="rectangular"
-            />
+            <div ref={(el) => { if (el) setGoogleBtnWidth(el.offsetWidth); }} className="w-full">
+              <GoogleLogin
+                onSuccess={(credentialResponse) => {
+                  if (credentialResponse.credential) {
+                    googleLogin(credentialResponse.credential)
+                      .then((res) => navigate(`/${res?.user.role}/dashboard`))
+                      .catch(() => toast.error("Google sign-up failed"));
+                  }
+                }}
+                onError={() => toast.error("Google sign-up failed")}
+                size="large"
+                width={googleBtnWidth}
+                text="signup_with"
+                shape="rectangular"
+              />
+            </div>
 
             <p className="text-sm text-neutral-500">
               Already have an account?{" "}
