@@ -24,7 +24,6 @@ import {
   type BidRecord,
   type ContractorProject,
 } from "@/api/bid";
-import api from "@/api/interceptor";
 
 /* ── Types ── */
 
@@ -87,7 +86,6 @@ const ContractorLeads = () => {
   const [filters, setFilters] = useState<LeadFilters>(initialFilters);
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
   const limit = 12;
 
   // Bid dialog
@@ -108,28 +106,15 @@ const ContractorLeads = () => {
     return set;
   }, [myBids]);
 
-  const loadLeads = async (p: number) => {
+  const loadLeads = async () => {
     try {
       setLoading(true);
-      const params: Record<string, string | number> = {
-        page: p,
-        limit,
-      };
-      if (filters.roomType) params.roomType = filters.roomType;
-      if (filters.minBudget) params.minBudget = Number(filters.minBudget);
-      if (filters.maxBudget) params.maxBudget = Number(filters.maxBudget);
-      if (filters.city) params.city = filters.city;
-
-      const [searchRes, bidsRes] = await Promise.all([
-        api.get("/projects/contractor/search", { params }),
+      const [projects, bidsRes] = await Promise.all([
+        bidService.getBiddingProjects(),
         bidService.getMyBids(),
       ]);
-
-      const projects = (searchRes.data.projects ?? []) as ContractorProject[];
       setLeads(projects);
-      setTotal(searchRes.data.total ?? projects.length);
       setMyBids(bidsRes);
-      setPage(p);
     } catch {
       toast.error("Failed to load leads.");
     } finally {
@@ -138,18 +123,18 @@ const ContractorLeads = () => {
   };
 
   useEffect(() => {
-    loadLeads(1);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    loadLeads();
+  }, []);
 
   const handleApplyFilters = () => {
     setShowFilters(false);
-    loadLeads(1);
+    setPage(1);
   };
 
   const handleResetFilters = () => {
     setFilters(initialFilters);
     setShowFilters(false);
-    loadLeads(1);
+    setPage(1);
   };
 
   const activeFilterCount = [
@@ -159,26 +144,58 @@ const ContractorLeads = () => {
     filters.city,
   ].filter(Boolean).length;
 
-  // Client-side search within loaded leads
-  const displayed = useMemo(() => {
-    if (!search.trim()) return leads;
-    const q = search.toLowerCase();
-    return leads.filter(
-      (p) =>
-        p.title.toLowerCase().includes(q) ||
-        p.description?.toLowerCase().includes(q) ||
-        p.roomType?.toLowerCase().includes(q) ||
-        p.address?.city?.toLowerCase().includes(q),
-    );
-  }, [leads, search]);
+  // Client-side filtering: search + filters + exclude already-bid
+  const filtered = useMemo(() => {
+    let list = leads.filter((p) => !bidProjectIds.has(p._id));
 
-  // Only show leads the contractor hasn't bid on
-  const unbidLeads = useMemo(
-    () => displayed.filter((p) => !bidProjectIds.has(p._id)),
-    [displayed, bidProjectIds],
-  );
+    // Text search
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (p) =>
+          p.title.toLowerCase().includes(q) ||
+          p.description?.toLowerCase().includes(q) ||
+          p.roomType?.toLowerCase().includes(q) ||
+          p.address?.city?.toLowerCase().includes(q),
+      );
+    }
 
-  const totalPages = Math.ceil(total / limit);
+    // Room type filter
+    if (filters.roomType) {
+      list = list.filter(
+        (p) => p.roomType?.toLowerCase() === filters.roomType.toLowerCase(),
+      );
+    }
+
+    // Budget filters
+    if (filters.minBudget) {
+      const min = Number(filters.minBudget);
+      list = list.filter((p) => {
+        const budget = p.budgetRange?.max ?? p.customBudget ?? 0;
+        return budget >= min;
+      });
+    }
+    if (filters.maxBudget) {
+      const max = Number(filters.maxBudget);
+      list = list.filter((p) => {
+        const budget = p.budgetRange?.min ?? p.customBudget ?? 0;
+        return budget <= max;
+      });
+    }
+
+    // City filter
+    if (filters.city) {
+      const c = filters.city.toLowerCase();
+      list = list.filter((p) =>
+        p.address?.city?.toLowerCase().includes(c),
+      );
+    }
+
+    return list;
+  }, [leads, bidProjectIds, search, filters]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / limit));
+  const unbidLeads = filtered.slice((page - 1) * limit, page * limit);
 
   /* ── Bid submission ── */
 
@@ -207,7 +224,7 @@ const ContractorLeads = () => {
       toast.success("Bid submitted!");
       setForm(initialForm);
       setDialogProject(null);
-      await loadLeads(page);
+      await loadLeads();
     } catch {
       toast.error("Could not submit bid.");
     } finally {
@@ -454,7 +471,7 @@ const ContractorLeads = () => {
               variant="outline"
               size="sm"
               disabled={page <= 1}
-              onClick={() => loadLeads(page - 1)}
+              onClick={() => setPage((p) => p - 1)}
             >
               Previous
             </Button>
@@ -462,7 +479,7 @@ const ContractorLeads = () => {
               variant="outline"
               size="sm"
               disabled={page >= totalPages}
-              onClick={() => loadLeads(page + 1)}
+              onClick={() => setPage((p) => p + 1)}
             >
               Next
             </Button>
