@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Upload,
   Image as ImageIcon,
@@ -6,14 +6,15 @@ import {
   Loader2,
   X,
   ChevronDown,
-  DollarSign,
   Layers,
   Paintbrush,
-  ArrowRight,
+  Clock,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/atoms/Button";
 import { Textarea } from "@/components/atoms/Textarea";
 import { toast } from "sonner";
+import { designService, type DesignSession } from "@/api/design";
 
 const ROOM_TYPES = [
   "Kitchen",
@@ -39,22 +40,6 @@ const DESIGN_STYLES = [
   { id: "japandi", label: "Japandi", emoji: "🍵", desc: "Japanese minimalism meets Nordic warmth" },
 ];
 
-// Mock generated designs for demo
-const MOCK_GENERATED = [
-  { id: "1", url: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=600&h=400&fit=crop", label: "Design Option A" },
-  { id: "2", url: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&h=400&fit=crop", label: "Design Option B" },
-];
-
-// Mock materials list
-const MOCK_MATERIALS = [
-  { name: "Quartz Countertop", qty: "30 sq ft", unit: "$75/sq ft", total: 2250 },
-  { name: "Shaker Cabinets", qty: "12 units", unit: "$350/unit", total: 4200 },
-  { name: "Subway Tile Backsplash", qty: "25 sq ft", unit: "$12/sq ft", total: 300 },
-  { name: "Hardwood Flooring", qty: "150 sq ft", unit: "$8/sq ft", total: 1200 },
-  { name: "Pendant Lights", qty: "3 units", unit: "$120/unit", total: 360 },
-  { name: "Under-cabinet LED Strip", qty: "10 ft", unit: "$15/ft", total: 150 },
-];
-
 const DesignStudio = () => {
   // Left panel state
   const [uploadedImages, setUploadedImages] = useState<{ file: File; preview: string }[]>([]);
@@ -65,11 +50,30 @@ const DesignStudio = () => {
 
   // Middle panel state
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generated, setGenerated] = useState<typeof MOCK_GENERATED>([]);
-  const [activeTab, setActiveTab] = useState<"original" | "generated">("original");
+  const [activeTab, setActiveTab] = useState<"original" | "generated" | "history">("original");
 
-  // Right panel state
-  const [materials] = useState(MOCK_MATERIALS);
+  // Generated result from current session
+  const [currentSession, setCurrentSession] = useState<DesignSession | null>(null);
+
+  // History
+  const [history, setHistory] = useState<DesignSession[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  const loadHistory = async () => {
+    try {
+      setLoadingHistory(true);
+      const res = await designService.getMyDesigns(1, 20);
+      setHistory(res.data);
+    } catch {
+      // silent
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  useEffect(() => {
+    loadHistory();
+  }, []);
 
   const handleUpload = (files: FileList | null) => {
     if (!files) return;
@@ -103,16 +107,41 @@ const DesignStudio = () => {
 
     setIsGenerating(true);
     setActiveTab("generated");
+    setCurrentSession(null);
 
-    // Simulate AI generation delay
-    await new Promise((r) => setTimeout(r, 3000));
-
-    setGenerated(MOCK_GENERATED);
-    setIsGenerating(false);
-    toast.success("Designs generated successfully!");
+    try {
+      const session = await designService.generate(
+        uploadedImages[0].file,
+        roomType,
+        designStyle,
+        prompt || undefined,
+      );
+      setCurrentSession(session);
+      toast.success(
+        `Design generated in ${((session.processingTimeMs ?? 0) / 1000).toFixed(1)}s!`,
+      );
+      // Refresh history
+      loadHistory();
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || "Generation failed";
+      toast.error(msg);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
-  const totalCost = materials.reduce((sum, m) => sum + m.total, 0);
+  const handleDeleteSession = async (id: string) => {
+    try {
+      await designService.deleteDesign(id);
+      setHistory((prev) => prev.filter((s) => s._id !== id));
+      if (currentSession?._id === id) setCurrentSession(null);
+      toast.success("Design deleted.");
+    } catch {
+      toast.error("Failed to delete design.");
+    }
+  };
+
+  const generatedImages = currentSession?.generatedImages ?? [];
 
   return (
     <div className="flex flex-col lg:flex-row h-full min-h-0 gap-0">
@@ -270,12 +299,21 @@ const DesignStudio = () => {
                 activeTab === "generated" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500 hover:text-neutral-700"
               }`}
             >
-              Generated ({generated.length})
+              Generated ({generatedImages.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("history")}
+              className={`rounded-md px-4 py-1.5 text-xs font-medium transition-colors ${
+                activeTab === "history" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500 hover:text-neutral-700"
+              }`}
+            >
+              History ({history.length})
             </button>
           </div>
 
-          {/* Content */}
-          {activeTab === "original" ? (
+          {/* Original Tab */}
+          {activeTab === "original" && (
             uploadedImages.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <ImageIcon size={48} className="text-neutral-300 mb-3" />
@@ -292,100 +330,120 @@ const DesignStudio = () => {
                 ))}
               </div>
             )
-          ) : isGenerating ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="relative mb-4">
-                <div className="size-16 rounded-full border-4 border-primary-100 border-t-primary-500 animate-spin" />
-                <Sparkles size={20} className="absolute inset-0 m-auto text-primary-500" />
-              </div>
-              <p className="text-neutral-700 font-medium">Generating your designs...</p>
-              <p className="text-neutral-400 text-xs mt-1">This usually takes 15-30 seconds</p>
-            </div>
-          ) : generated.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <Sparkles size={48} className="text-neutral-300 mb-3" />
-              <p className="text-neutral-500 text-sm">No designs generated yet</p>
-              <p className="text-neutral-400 text-xs mt-1">Configure your preferences and click "Generate Design"</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {generated.map((design) => (
-                <div key={design.id} className="rounded-xl overflow-hidden border border-neutral-200 bg-white shadow-sm group">
-                  <div className="relative">
-                    <img loading="lazy" src={design.url} alt={design.label} className="w-full aspect-[4/3] object-cover" />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-end">
-                      <div className="w-full p-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="primary" size="xs" className="w-full">
-                          Use This Design <ArrowRight size={14} className="ml-1" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="px-3 py-2 flex items-center justify-between">
-                    <span className="text-xs text-neutral-600 font-medium">{design.label}</span>
-                    <span className="text-[10px] text-primary-500 font-medium uppercase">AI Generated</span>
-                  </div>
-                </div>
-              ))}
-            </div>
           )}
-        </div>
-      </div>
 
-      {/* ── Right Panel: Materials & Cost ── */}
-      <div className="w-full lg:w-72 xl:w-80 shrink-0 border-t lg:border-t-0 lg:border-l border-neutral-200 bg-white overflow-y-auto">
-        <div className="p-5 space-y-4">
-          <div>
-            <h3 className="text-sm font-semibold flex items-center gap-2">
-              <DollarSign size={16} className="text-emerald-500" />
-              Materials & Cost
-            </h3>
-            <p className="text-[11px] text-neutral-400 mt-0.5">Estimated materials based on design</p>
-          </div>
-
-          {generated.length === 0 ? (
-            <div className="py-10 text-center">
-              <DollarSign size={32} className="mx-auto text-neutral-200 mb-2" />
-              <p className="text-xs text-neutral-400">Generate a design to see estimated materials and costs</p>
-            </div>
-          ) : (
-            <>
-              {/* Materials List */}
-              <div className="space-y-2">
-                {materials.map((m, i) => (
-                  <div key={i} className="rounded-lg border border-neutral-100 bg-neutral-50 p-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium text-neutral-800 truncate">{m.name}</p>
-                        <p className="text-[11px] text-neutral-400 mt-0.5">{m.qty} &middot; {m.unit}</p>
-                      </div>
-                      <span className="text-xs font-semibold text-neutral-700 shrink-0">
-                        ${m.total.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Total */}
-              <div className="rounded-xl bg-primary-50 border border-primary-100 p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-primary-800">Estimated Total</span>
-                  <span className="text-lg font-bold text-primary-700">${totalCost.toLocaleString()}</span>
+          {/* Generated Tab */}
+          {activeTab === "generated" && (
+            isGenerating ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="relative mb-4">
+                  <div className="size-16 rounded-full border-4 border-primary-100 border-t-primary-500 animate-spin" />
+                  <Sparkles size={20} className="absolute inset-0 m-auto text-primary-500" />
                 </div>
-                <p className="text-[10px] text-primary-500 mt-1">Materials only — labor not included</p>
+                <p className="text-neutral-700 font-medium">Generating your design...</p>
+                <p className="text-neutral-400 text-xs mt-1">This usually takes 15-30 seconds</p>
               </div>
+            ) : generatedImages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <Sparkles size={48} className="text-neutral-300 mb-3" />
+                <p className="text-neutral-500 text-sm">No designs generated yet</p>
+                <p className="text-neutral-400 text-xs mt-1">Configure your preferences and click "Generate Design"</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Session info */}
+                <div className="flex items-center gap-3 text-xs text-neutral-500">
+                  <span className="capitalize">{currentSession?.style.id} style</span>
+                  {currentSession?.processingTimeMs && (
+                    <span className="flex items-center gap-1">
+                      <Clock size={12} />
+                      {(currentSession.processingTimeMs / 1000).toFixed(1)}s
+                    </span>
+                  )}
+                </div>
 
-              {/* Actions */}
-              <div className="space-y-2">
-                <Button variant="primary" size="sm" className="w-full">
-                  Save to Project
-                </Button>
-                <Button variant="outline" size="sm" className="w-full">
-                  Export as PDF
-                </Button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Original for comparison */}
+                  {currentSession?.roomPhoto?.signedUrl && (
+                    <div className="rounded-xl overflow-hidden border border-neutral-200 bg-white shadow-sm">
+                      <img src={currentSession.roomPhoto.signedUrl} alt="Original" className="w-full aspect-[4/3] object-cover" />
+                      <div className="px-3 py-2 text-xs text-neutral-500">Original</div>
+                    </div>
+                  )}
+
+                  {/* Rendered images */}
+                  {generatedImages.map((img, i) => (
+                    <div key={i} className="rounded-xl overflow-hidden border border-primary-200 bg-white shadow-sm">
+                      <img src={img.signedUrl} alt={`Render ${i + 1}`} className="w-full aspect-[4/3] object-cover" />
+                      <div className="px-3 py-2 flex items-center justify-between">
+                        <span className="text-xs text-neutral-600 font-medium">AI Render {i + 1}</span>
+                        <span className="text-[10px] text-primary-500 font-medium uppercase">
+                          {img.resolution}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </>
+            )
+          )}
+
+          {/* History Tab */}
+          {activeTab === "history" && (
+            loadingHistory ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <Loader2 size={24} className="animate-spin text-neutral-400 mb-2" />
+                <p className="text-neutral-500 text-sm">Loading history...</p>
+              </div>
+            ) : history.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <Clock size={48} className="text-neutral-300 mb-3" />
+                <p className="text-neutral-500 text-sm">No past designs yet</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {history.map((session) => {
+                  const render = session.generatedImages?.[0];
+                  const styleName = DESIGN_STYLES.find((s) => s.id === session.style.id)?.label ?? session.style.id;
+                  return (
+                    <div
+                      key={session._id}
+                      className="rounded-xl overflow-hidden border border-neutral-200 bg-white shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => {
+                        setCurrentSession(session);
+                        setActiveTab("generated");
+                      }}
+                    >
+                      {render?.signedUrl ? (
+                        <img src={render.signedUrl} alt={styleName} className="w-full aspect-[4/3] object-cover" />
+                      ) : (
+                        <div className="w-full aspect-[4/3] bg-neutral-100 flex items-center justify-center">
+                          <ImageIcon size={32} className="text-neutral-300" />
+                        </div>
+                      )}
+                      <div className="px-3 py-2 flex items-center justify-between">
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-neutral-700 truncate">{styleName}</p>
+                          <p className="text-[10px] text-neutral-400">
+                            {new Date(session.createdAt).toLocaleDateString()} &middot;{" "}
+                            <span className={session.status === "completed" ? "text-green-500" : session.status === "failed" ? "text-red-500" : "text-amber-500"}>
+                              {session.status}
+                            </span>
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); void handleDeleteSession(session._id); }}
+                          className="p-1 rounded text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
           )}
         </div>
       </div>
