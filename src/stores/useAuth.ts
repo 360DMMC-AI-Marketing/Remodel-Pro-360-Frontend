@@ -116,7 +116,12 @@ export const useAuth = create<AuthState>()(
 
       selectRole: async (role: "homeowner" | "contractor") => {
         const response = await authService.selectRole(role);
-        set({ user: response.user, role: response.user.role });
+        set({
+          user: response.user,
+          role: response.user.role,
+          token: response.tokens?.accessToken ?? null,
+          refreshToken: response.tokens?.refreshToken ?? null,
+        });
         return response;
       },
 
