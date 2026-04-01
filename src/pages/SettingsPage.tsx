@@ -167,21 +167,23 @@ const SettingsPage = () => {
             )}
           </div>
 
-          {/* Email Verification */}
-          <div className="flex items-center justify-between rounded-lg bg-neutral-50 px-4 py-3">
-            <div className="flex items-center gap-3">
-              <Mail size={16} className="text-neutral-400" />
-              <div>
-                <p className="text-sm font-medium text-neutral-700">Email verified</p>
-                <p className="text-xs text-neutral-400">{user?.email}</p>
+          {/* Email Verification (local auth only) */}
+          {!isOAuth && (
+            <div className="flex items-center justify-between rounded-lg bg-neutral-50 px-4 py-3">
+              <div className="flex items-center gap-3">
+                <Mail size={16} className="text-neutral-400" />
+                <div>
+                  <p className="text-sm font-medium text-neutral-700">Email verified</p>
+                  <p className="text-xs text-neutral-400">{user?.email}</p>
+                </div>
               </div>
+              <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
+                user?.isVerified ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+              }`}>
+                {user?.isVerified ? "Verified" : "Not verified"}
+              </span>
             </div>
-            <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
-              user?.isVerified ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
-            }`}>
-              {user?.isVerified ? "Verified" : "Not verified"}
-            </span>
-          </div>
+          )}
 
           {/* Change Password (only for local auth) */}
           {!isOAuth && (
