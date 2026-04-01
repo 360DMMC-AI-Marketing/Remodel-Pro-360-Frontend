@@ -57,6 +57,11 @@ export const authService = {
     return response.data;
   },
 
+  selectRole: async (role: "homeowner" | "contractor") => {
+    const response = await api.patch('/auth/select-role', { role });
+    return response.data;
+  },
+
   refreshToken: async (refreshToken: string): Promise<RefreshTokenResponse> => {
     const response = await api.post('/auth/refresh', { refreshToken });
     return response.data as RefreshTokenResponse;

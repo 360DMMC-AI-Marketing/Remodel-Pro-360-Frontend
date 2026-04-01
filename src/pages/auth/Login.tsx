@@ -43,7 +43,11 @@ const Login = () => {
   const onSubmit = async (data: LoginFormValues) => {
     try {
       const response = await login(data);
-      navigate(`/${response?.user.role}/dashboard`);
+      if (!response?.user.role) {
+        navigate("/select-role");
+      } else {
+        navigate(`/${response.user.role}/dashboard`);
+      }
     } catch (error) {
       const err = error as { response?: { data?: { error?: string } } };
       toast.error(err?.response?.data?.error || "Invalid email or password. Please try again.");
@@ -153,8 +157,12 @@ const Login = () => {
                 if (credentialResponse.credential) {
                   googleLogin(credentialResponse.credential)
                   .then((res) => {
-                    toast.success(`Welcome back, ${res?.user.firstName}!`);
-                    navigate(`/${res?.user.role}/dashboard`);
+                    if (!res?.user.role) {
+                      navigate("/select-role");
+                    } else {
+                      toast.success(`Welcome back, ${res?.user.firstName}!`);
+                      navigate(`/${res.user.role}/dashboard`);
+                    }
                   })
                   .catch(() => toast.error("Google sign-in failed. Please try again."));
                 }

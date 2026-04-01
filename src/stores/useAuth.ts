@@ -17,6 +17,7 @@ interface AuthState {
   login: (data: LoginFormValues) => Promise<UserResponse>;
   googleLogin: (idToken: string) => Promise<UserResponse>;
   signup: (data: RegisterFormValues) => Promise<void>;
+  selectRole: (role: "homeowner" | "contractor") => Promise<any>;
   verifyEmail: (token: string) => Promise<UserResponse>;
   // resendVerificationEmail: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
@@ -98,13 +99,25 @@ export const useAuth = create<AuthState>()(
         set({ isLoading: true });
         try {
           const response = await authService.register(data);
-          set({ user: response.user });
-          set({ isLoading: false });
+          set({
+            user: response.user,
+            token: response.tokens?.accessToken ?? null,
+            refreshToken: response.tokens?.refreshToken ?? null,
+            role: response.user.role,
+            isAuthenticated: true,
+            isLoading: false,
+          });
           return response;
         } catch (error) {
           set({ isLoading: false });
           throw error;
         }
+      },
+
+      selectRole: async (role: "homeowner" | "contractor") => {
+        const response = await authService.selectRole(role);
+        set({ user: response.user, role: response.user.role });
+        return response;
       },
 
       verifyEmail: async (token: string) => {

@@ -30,9 +30,6 @@ export const loginSchema = z.object({
 
 export const registerSchema = z
   .object({
-    role: z.enum(["homeowner", "contractor"], {
-      message: "Please select a role",
-    }),
     firstName: z.string().min(3, "First name is required"),
     lastName: z.string().min(3, "Last name is required"),
     email: z

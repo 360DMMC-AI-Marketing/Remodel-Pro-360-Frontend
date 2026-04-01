@@ -33,6 +33,7 @@ import MessagesPage from "./pages/messages/MessagesPage";
 import FindContractors from "./pages/homeowner/FindContractors";
 import ContractorDetails from "./pages/homeowner/ContractorDetails";
 import NotificationsPage from "./pages/NotificationsPage";
+import SelectRole from "./pages/auth/SelectRole";
 import SettingsPage from "./pages/SettingsPage";
 
 interface ProtectedRoutesProps {
@@ -44,7 +45,10 @@ const ProtectedRoutes = ({ allowedRole }: ProtectedRoutesProps) => {
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-  if (allowedRole && user?.role !== allowedRole) {
+  if (!user?.role) {
+    return <Navigate to="/select-role" replace />;
+  }
+  if (allowedRole && user.role !== allowedRole) {
     return <Navigate to="/" replace />;
   }
   return <Outlet />;
@@ -52,7 +56,10 @@ const ProtectedRoutes = ({ allowedRole }: ProtectedRoutesProps) => {
 
 const AuthRoutes = () => {
   const { isAuthenticated, role } = useAuth();
-  if (isAuthenticated) {
+  if (isAuthenticated && !role) {
+    return <Navigate to="/select-role" replace />;
+  }
+  if (isAuthenticated && role) {
     return <Navigate to={`/${role}/dashboard`} replace />;
   }
   return <Outlet />;
@@ -92,6 +99,7 @@ function App() {
           <Route path="/reset-password" element={<ResetPassword />} />
         </Route>
         <Route path="/register" element={<Register />} />
+        <Route path="/select-role" element={<SelectRole />} />
 
         <Route element={<ProtectedRoutes />}>
           <Route path="/messages" element={<MessagesRouteResolver />} />
