@@ -5,6 +5,7 @@ import { Button } from "@/components/atoms/Button";
 import { Input } from "@/components/atoms/Input";
 import { toast } from "sonner";
 import { useAuth } from "@/stores/useAuth";
+import { authService } from "@/api/auth";
 import api from "@/api/interceptor";
 
 interface NotificationPrefs {
@@ -173,15 +174,33 @@ const SettingsPage = () => {
               <div className="flex items-center gap-3">
                 <Mail size={16} className="text-neutral-400" />
                 <div>
-                  <p className="text-sm font-medium text-neutral-700">Email verified</p>
+                  <p className="text-sm font-medium text-neutral-700">Email verification</p>
                   <p className="text-xs text-neutral-400">{user?.email}</p>
                 </div>
               </div>
-              <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
-                user?.isVerified ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
-              }`}>
-                {user?.isVerified ? "Verified" : "Not verified"}
-              </span>
+              <div className="flex items-center gap-2">
+                {!user?.isVerified && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await authService.resendVerification();
+                        toast.success("Verification email sent! Check your inbox.");
+                      } catch {
+                        toast.error("Failed to send verification email.");
+                      }
+                    }}
+                    className="text-xs font-medium text-primary-600 hover:text-primary-700 hover:underline"
+                  >
+                    Resend email
+                  </button>
+                )}
+                <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
+                  user?.isVerified ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                }`}>
+                  {user?.isVerified ? "Verified" : "Not verified"}
+                </span>
+              </div>
             </div>
           )}
 

@@ -57,6 +57,11 @@ export const authService = {
     return response.data;
   },
 
+  resendVerification: async () => {
+    const response = await api.post('/auth/resend-verification');
+    return response.data;
+  },
+
   selectRole: async (role: "homeowner" | "contractor") => {
     const response = await api.patch('/auth/select-role', { role });
     return response.data;

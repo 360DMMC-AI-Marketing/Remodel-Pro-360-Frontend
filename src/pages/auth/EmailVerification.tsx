@@ -1,69 +1,78 @@
-import { Button } from "@/components/atoms/Button";
 import { Spinner } from "@/components/atoms/Spinner";
 import { useAuth } from "@/stores/useAuth";
-import { useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import logo from "../../assets/logo-transparent.png";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { CheckCircle2, XCircle } from "lucide-react";
+import logo from "@/assets/logo-transparent.png";
 
 const EmailVerification = () => {
   const navigate = useNavigate();
-
-  const [status, setStatus] = useState("loading");
-  const [message, setMessage] = useState("");
-  const { verifyEmail } = useAuth();
   const [searchParams] = useSearchParams();
+  const token = searchParams.get("token");
+  const { verifyEmail } = useAuth();
+  const called = useRef(false);
+
+  const [status, setStatus] = useState<"loading" | "success" | "error">(
+    token ? "loading" : "error",
+  );
+  const [message, setMessage] = useState(
+    token ? "" : "Invalid verification link. No token found.",
+  );
+
   useEffect(() => {
-    const token = searchParams.get("token");
-    if (!token) {
-      setStatus("error");
-      setMessage("Invalid token");
-      return;
-    }
-    const verify = async () => {
-      try {
-        const response = await verifyEmail(token);
+    if (!token || called.current) return;
+    called.current = true;
+
+    verifyEmail(token)
+      .then((response) => {
         setStatus("success");
-        setMessage("Email verified successfully");
-        navigate(`/${response.user.role}/dashboard`);
-      } catch (error) {
+        setMessage("Your email has been verified!");
+        setTimeout(() => {
+          const role = response?.user?.role;
+          navigate(!role ? "/select-role" : `/${role}/dashboard`);
+        }, 1500);
+      })
+      .catch(() => {
         setStatus("error");
-        setMessage("Verification link is invalid or expired.");
-        console.log(error)
-      }
-    };
-    verify();
-  }, []);
+        setMessage("This verification link is invalid or has expired.");
+      });
+  }, [token, verifyEmail, navigate]);
+
   return (
-    <div className="bg-neutral-100 h-screen w-screen flex justify-center items-center">
-      <div className="text-center">
-        <img src={logo} alt="RP360 Logo" className="w-64 mx-auto"/>
-        <p className="text-lg font-bold">Verify your email</p>
-        <p className="text-sm text-neutral-500">
-          Please check your email for a verification link
-        </p>
-        {status === "success" && (
-          <div className="text-green-500">
-            <p>Email verified successfully. Redirecting to dashboard...</p>
+    <div className="min-h-screen flex items-center justify-center bg-neutral-100 px-4">
+      <div className="w-full max-w-sm text-center">
+        <img src={logo} alt="RP360" className="w-40 mx-auto mb-6" />
+
+        {status === "loading" && (
+          <div className="space-y-3">
+            <Spinner size="md" />
+            <p className="text-sm text-neutral-500">Verifying your email...</p>
           </div>
         )}
+
+        {status === "success" && (
+          <div className="space-y-3">
+            <CheckCircle2 size={48} className="mx-auto text-emerald-500" />
+            <p className="text-lg font-semibold text-neutral-900">{message}</p>
+            <p className="text-sm text-neutral-500">Redirecting you now...</p>
+          </div>
+        )}
+
         {status === "error" && (
-          <div className="text-red-500 flex flex-col items-center gap-2">
-            <p>{message}</p>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => navigate("/register")}
+          <div className="space-y-4">
+            <XCircle size={48} className="mx-auto text-red-400" />
+            <p className="text-lg font-semibold text-neutral-900">Verification failed</p>
+            <p className="text-sm text-neutral-500">{message}</p>
+            <button
+              type="button"
+              onClick={() => navigate("/login")}
+              className="inline-flex items-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 transition-colors"
             >
-              <Link to="/register">Register</Link>
-            </Button>
+              Go to Login
+            </button>
           </div>
         )}
       </div>
-      {status === "loading" && (
-        <div className="text-center">
-          <Spinner size="sm" />
-        </div>
-      )}
     </div>
   );
 };
