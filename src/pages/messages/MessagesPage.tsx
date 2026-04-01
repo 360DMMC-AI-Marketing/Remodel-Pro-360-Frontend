@@ -208,6 +208,7 @@ const MessagesPage = () => {
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [unreadMap, setUnreadMap] = useState<Map<string, number>>(new Map());
+  const [lastMessageMap, setLastMessageMap] = useState<Map<string, string>>(new Map());
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -222,6 +223,14 @@ const MessagesPage = () => {
         return aTime - bTime;
       });
     });
+    // Update last message timestamp so conversation list re-sorts
+    if (incoming.projectId && incoming.createdAt) {
+      setLastMessageMap((prev) => {
+        const next = new Map(prev);
+        next.set(String(incoming.projectId), incoming.createdAt);
+        return next;
+      });
+    }
   };
 
   const currentUserId = useMemo(() => {
@@ -273,19 +282,27 @@ const MessagesPage = () => {
   const sharedDocs = useMemo(() => sharedFiles.filter((f) => !f.isImage), [sharedFiles]);
 
   const filteredProjects = useMemo(() => {
+    let list = projects;
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return projects;
-    return projects.filter((project) => {
-      const name =
-        role === "homeowner"
-          ? getDisplayName(project.contractor)
-          : getDisplayName(project.homeowner);
-      return (
-        name.toLowerCase().includes(query) ||
-        project.title.toLowerCase().includes(query)
-      );
+    if (query) {
+      list = list.filter((project) => {
+        const name =
+          role === "homeowner"
+            ? getDisplayName(project.contractor)
+            : getDisplayName(project.homeowner);
+        return (
+          name.toLowerCase().includes(query) ||
+          project.title.toLowerCase().includes(query)
+        );
+      });
+    }
+    // Sort by last message time (most recent first), then unread on top
+    return [...list].sort((a, b) => {
+      const aTime = new Date(lastMessageMap.get(a._id) ?? 0).getTime();
+      const bTime = new Date(lastMessageMap.get(b._id) ?? 0).getTime();
+      return bTime - aTime;
     });
-  }, [projects, role, searchQuery]);
+  }, [projects, role, searchQuery, lastMessageMap]);
 
   const loadHomeownerProjects = async () => {
     const response = await getProjectsWithFilters({ page: 1, limit: 100 });
@@ -322,6 +339,20 @@ const MessagesPage = () => {
     return projects;
   };
 
+  const loadLastMessageTimestamps = async (projectList: MessageProject[]) => {
+    const map = new Map<string, string>();
+    const results = await Promise.allSettled(
+      projectList.map((p) => messageService.getProjectMessages(p._id, 1, 1)),
+    );
+    for (let i = 0; i < projectList.length; i++) {
+      const result = results[i];
+      if (result.status === "fulfilled" && result.value.messages.length > 0) {
+        map.set(projectList[i]._id, result.value.messages[0].createdAt);
+      }
+    }
+    setLastMessageMap(map);
+  };
+
   const loadProjects = async () => {
     try {
       setLoadingProjects(true);
@@ -334,6 +365,7 @@ const MessagesPage = () => {
       }
 
       setProjects(data);
+      void loadLastMessageTimestamps(data);
     } catch {
       toast.error("Failed to load conversations.");
     } finally {

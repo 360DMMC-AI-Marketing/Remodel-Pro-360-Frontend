@@ -82,20 +82,20 @@ const HomeownerDashboard = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {kpis.map(({ label, value, icon: Icon, color, bg }) => (
-          <div key={label} className="rounded-xl border border-neutral-200 bg-white p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="space-y-2">
-                <span className="text-sm text-neutral-500">{label}</span>
+          <div key={label} className="rounded-xl border border-neutral-200 bg-white p-3 sm:p-5">
+            <div className="flex items-center justify-between gap-2 sm:gap-3">
+              <div className="space-y-1 sm:space-y-2 min-w-0">
+                <span className="text-xs sm:text-sm text-neutral-500">{label}</span>
                 {loading ? (
-                  <Skeleton className="h-8 w-20" />
+                  <Skeleton className="h-6 sm:h-8 w-16 sm:w-20" />
                 ) : (
-                  <p className={`text-2xl font-bold ${color}`}>{value}</p>
+                  <p className={`text-lg sm:text-2xl font-bold ${color} truncate`}>{value}</p>
                 )}
               </div>
-              <div className={`${bg} rounded-xl p-3 shrink-0`}>
-                <Icon size={22} className={color} />
+              <div className={`${bg} rounded-lg sm:rounded-xl p-2 sm:p-3 shrink-0`}>
+                <Icon className={`${color} size-4 sm:size-[22px]`} />
               </div>
             </div>
           </div>
