@@ -14,10 +14,9 @@ import {
   MessageSquare,
   Clock,
   ArrowRight,
-  AlertTriangle,
-  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
+import { OnboardingChecklist, buildContractorSteps } from "@/components/OnboardingChecklist";
 
 const ContractorDashboard = () => {
   const { user } = useAuth();
@@ -26,7 +25,7 @@ const ContractorDashboard = () => {
   const [unread, setUnread] = useState(0);
   const [totalEarned, setTotalEarned] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [onboardingLoading, setOnboardingLoading] = useState(false);
+  const [, setOnboardingLoading] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -92,28 +91,17 @@ const ContractorDashboard = () => {
         <p className="text-neutral-500 text-sm mt-1">Here's an overview of your activity.</p>
       </div>
 
-      {/* Stripe Connect Banner */}
-      {connectStatus && !connectStatus.onboardingComplete && (
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="text-amber-600 shrink-0 mt-0.5" size={20} />
-            <div>
-              <p className="font-medium text-amber-800">Complete your payment setup</p>
-              <p className="text-sm text-amber-700 mt-0.5">
-                Set up your Stripe account to receive payouts for completed milestones.
-              </p>
-            </div>
-          </div>
-          <Button
-            variant="primary"
-            size="sm"
-            disabled={onboardingLoading}
-            onClick={handleOnboarding}
-          >
-            {onboardingLoading ? "Loading..." : <>Set Up Payments <ExternalLink size={14} className="ml-1" /></>}
-          </Button>
-        </div>
-      )}
+      {/* Onboarding Checklist */}
+      <OnboardingChecklist
+        steps={buildContractorSteps({
+          emailVerified: user?.isVerified ?? false,
+          isLocal: user?.authProvider === "local",
+          hasLicense: (user?.contractor?.licenses?.length ?? 0) > 0,
+          hasInsurance: (user?.contractor?.insurances?.length ?? 0) > 0,
+          stripeComplete: connectStatus?.onboardingComplete ?? false,
+          onStripeSetup: handleOnboarding,
+        })}
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

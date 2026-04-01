@@ -17,6 +17,7 @@ import { getProjects } from "@/api/project";
 import { messageService } from "@/api/message";
 import type { HomeownerProject } from "@/types/project";
 import { toast } from "sonner";
+import { OnboardingChecklist, buildHomeownerSteps } from "@/components/OnboardingChecklist";
 
 const statusVariant = (s?: string): "primary" | "success" | "warning" | "error" | "draft" => {
   switch (s) {
@@ -80,6 +81,14 @@ const HomeownerDashboard = () => {
           <Button variant="primary" size="sm"><Plus size={16} className="mr-1" /> New Project</Button>
         </Link>
       </div>
+
+      {/* Onboarding Checklist */}
+      <OnboardingChecklist
+        steps={buildHomeownerSteps({
+          emailVerified: user?.isVerified ?? false,
+          isLocal: user?.authProvider === "local",
+        })}
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
