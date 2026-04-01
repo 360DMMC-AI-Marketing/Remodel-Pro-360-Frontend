@@ -94,11 +94,11 @@ function App() {
             path="/email-verification-info"
             element={<EmailVerificationInfo />}
           />
-          <Route path="/verify-email" element={<EmailVerification />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
         </Route>
         <Route path="/register" element={<Register />} />
+        <Route path="/verify-email" element={<EmailVerification />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/select-role" element={<SelectRole />} />
 
         <Route element={<ProtectedRoutes />}>
