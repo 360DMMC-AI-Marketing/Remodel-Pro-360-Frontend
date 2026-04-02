@@ -22,6 +22,10 @@ export interface DesignSession {
 }
 
 export const designService = {
+  /**
+   * Submit a design job — returns immediately with session ID (202).
+   * The actual generation happens in a background worker.
+   */
   async generate(
     image: File,
     roomType: string,
@@ -38,9 +42,40 @@ export const designService = {
 
     const res = await api.post("/designs", formData, {
       headers: { "Content-Type": "multipart/form-data" },
-      timeout: 180_000, // 3 min — AI generation can be slow
     });
     return res.data.data as DesignSession;
+  },
+
+  /**
+   * Poll for session status — lightweight endpoint.
+   * Returns full data (signed URLs) only when status is "completed".
+   */
+  async getStatus(id: string): Promise<DesignSession> {
+    const res = await api.get(`/designs/${id}/status`);
+    return res.data.data as DesignSession;
+  },
+
+  /**
+   * Poll until the session reaches a terminal state (completed or failed).
+   * Calls onStatus on each poll so the UI can update.
+   */
+  async pollUntilDone(
+    id: string,
+    onStatus?: (session: DesignSession) => void,
+    intervalMs = 3000,
+    maxAttempts = 60,
+  ): Promise<DesignSession> {
+    for (let i = 0; i < maxAttempts; i++) {
+      const session = await this.getStatus(id);
+      onStatus?.(session);
+
+      if (session.status === "completed" || session.status === "failed") {
+        return session;
+      }
+
+      await new Promise((r) => setTimeout(r, intervalMs));
+    }
+    throw new Error("Design generation timed out");
   },
 
   async getMyDesigns(

@@ -110,18 +110,30 @@ const DesignStudio = () => {
     setCurrentSession(null);
 
     try {
-      const session = await designService.generate(
+      // 1. Submit job — returns immediately with session ID
+      const queued = await designService.generate(
         uploadedImages[0].file,
         roomType,
         designStyle,
         prompt || undefined,
       );
-      setCurrentSession(session);
-      toast.success(
-        `Design generated in ${((session.processingTimeMs ?? 0) / 1000).toFixed(1)}s!`,
+      setCurrentSession(queued);
+
+      // 2. Poll until done
+      const completed = await designService.pollUntilDone(
+        queued._id,
+        (update) => setCurrentSession(update),
       );
-      // Refresh history
-      loadHistory();
+
+      if (completed.status === "completed") {
+        setCurrentSession(completed);
+        toast.success(
+          `Design generated in ${((completed.processingTimeMs ?? 0) / 1000).toFixed(1)}s!`,
+        );
+        loadHistory();
+      } else {
+        toast.error(completed.errorMessage || "Generation failed");
+      }
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || "Generation failed";
       toast.error(msg);
