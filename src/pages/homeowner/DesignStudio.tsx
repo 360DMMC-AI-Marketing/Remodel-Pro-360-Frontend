@@ -110,23 +110,35 @@ const DesignStudio = () => {
     setCurrentSession(null);
 
     try {
-      // 1. Submit job — returns immediately with session ID
+      // 1. Submit job — returns immediately with session ID (partial data)
       const queued = await designService.generate(
         uploadedImages[0].file,
         roomType,
         designStyle,
         prompt || undefined,
       );
-      setCurrentSession(queued);
 
-      // 2. Poll until done
+      // Build a local session object with the info we already have
+      const localSession: DesignSession = {
+        ...queued,
+        style: { id: designStyle, prompt: prompt || undefined },
+        roomPhoto: { url: "", uploadedAt: new Date().toISOString() },
+        generatedImages: [],
+        userId: "",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      setCurrentSession(localSession);
+
+      // 2. Poll until done — merge updates into local session to preserve style info
       const completed = await designService.pollUntilDone(
         queued._id,
-        (update) => setCurrentSession(update),
+        (update) => setCurrentSession((prev) => prev ? { ...prev, ...update } : update),
       );
 
+      setCurrentSession((prev) => prev ? { ...prev, ...completed } : completed);
+
       if (completed.status === "completed") {
-        setCurrentSession(completed);
         toast.success(
           `Design generated in ${((completed.processingTimeMs ?? 0) / 1000).toFixed(1)}s!`,
         );
@@ -365,7 +377,7 @@ const DesignStudio = () => {
               <div className="space-y-4">
                 {/* Session info */}
                 <div className="flex items-center gap-3 text-xs text-neutral-500">
-                  <span className="capitalize">{currentSession?.style.id} style</span>
+                  <span className="capitalize">{currentSession?.style?.id ?? designStyle} style</span>
                   {currentSession?.processingTimeMs && (
                     <span className="flex items-center gap-1">
                       <Clock size={12} />
@@ -416,7 +428,7 @@ const DesignStudio = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {history.map((session) => {
                   const render = session.generatedImages?.[0];
-                  const styleName = DESIGN_STYLES.find((s) => s.id === session.style.id)?.label ?? session.style.id;
+                  const styleName = DESIGN_STYLES.find((s) => s.id === session.style?.id)?.label ?? session.style?.id ?? "Unknown";
                   return (
                     <div
                       key={session._id}
