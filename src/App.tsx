@@ -3,6 +3,7 @@ import { Routes, Route } from "react-router-dom";
 import { Toaster } from "./components/ui/sonner";
 import LandingPage from "./pages/LandingPage";
 import HowItWorks from "./pages/HowItWorks";
+import Contact from "./pages/Contact";
 import CommingSoon from "./pages/CommingSoon";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/auth/Login";
@@ -86,6 +87,7 @@ function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/how-it-works" element={<HowItWorks />} />
+        <Route path="/contact" element={<Contact />} />
         <Route path="/pricing" element={<CommingSoon />} />
         <Route element={<AuthRoutes />}>
           <Route path="/login" element={<Login />} />

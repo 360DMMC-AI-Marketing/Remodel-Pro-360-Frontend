@@ -12,13 +12,13 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Sparkles,
   Briefcase,
   DollarSign,
   User,
   ShieldCheck
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+import logo from "@/assets/logo-transparent.png";
 
 const homeownerLinks = [
   { to: "/homeowner/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -75,9 +75,7 @@ const SideBar = ({
     >
       {/* Logo */}
       <div className="h-14 px-3 border-b border-b-neutral-200 flex items-center space-x-2 shrink-0">
-        <div className="bg-linear-to-br from-primary-500 to-primary-900 p-3 rounded-xl">
-          <Sparkles size={22} className="text-white" />
-        </div>
+        <img src={logo} alt="RP360" className="h-8 w-auto" />
         {!isCollapsed && <h4>RP360</h4>}
       </div>
       <div className="px-3 flex flex-col flex-1">

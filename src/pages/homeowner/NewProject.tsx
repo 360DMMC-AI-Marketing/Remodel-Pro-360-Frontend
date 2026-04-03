@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { createProject } from "@/api/project";
+import { reverseGeocode } from "@/api/geolocation";
 import LocationPickerMap from "@/components/ui/LocationPickerMap";
 
 const STEPS = [
@@ -80,6 +81,7 @@ const NewProject = () => {
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
+  const [isGeocoding, setIsGeocoding] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<ProjectFormData>({
     roomType: "",
@@ -95,6 +97,66 @@ const NewProject = () => {
 
   const update = (patch: Partial<ProjectFormData>) =>
     setForm((prev) => ({ ...prev, ...patch }));
+
+  const handleLocationChange = async (coordinates: [number, number] | null) => {
+    if (!coordinates) {
+      // Location cleared
+      update({
+        address: {
+          street: form.address?.street || "",
+          city: form.address?.city || "",
+          state: form.address?.state || "",
+          zipCode: form.address?.zipCode || "",
+          coordinates: undefined,
+        },
+      });
+      return;
+    }
+
+    setIsGeocoding(true);
+    try {
+      const addressData = await reverseGeocode(coordinates[0], coordinates[1]);
+      if (addressData) {
+        update({
+          address: {
+            street: addressData.street,
+            city: addressData.city,
+            state: addressData.state,
+            zipCode: addressData.zipCode,
+            coordinates: { type: "Point", coordinates },
+          },
+        });
+        toast.success("Address auto-filled from location");
+      } else {
+        // Still update coordinates even if geocoding fails
+        update({
+          address: {
+            street: form.address?.street || "",
+            city: form.address?.city || "",
+            state: form.address?.state || "",
+            zipCode: form.address?.zipCode || "",
+            coordinates: { type: "Point", coordinates },
+          },
+        });
+        toast.info("Could not auto-fill address. Please fill in manually.");
+      }
+    } catch (error) {
+      console.error("Error geocoding location:", error);
+      // Still update coordinates even if there's an error
+      update({
+        address: {
+          street: form.address?.street || "",
+          city: form.address?.city || "",
+          state: form.address?.state || "",
+          zipCode: form.address?.zipCode || "",
+          coordinates: { type: "Point", coordinates },
+        },
+      });
+      toast.error("Error auto-filling address. Please fill in manually.");
+    } finally {
+      setIsGeocoding(false);
+    }
+  };
 
   const canNext = () => {
     if (step === 0) return !!form.roomType;
@@ -458,24 +520,14 @@ const NewProject = () => {
                     Project Location
                   </label>
                   <p className="mb-2 text-xs text-muted-foreground">
-                    Click on the map to pin the exact project location.
+                    {isGeocoding
+                      ? "Finding address information..."
+                      : "Click on the map to pin the exact location. Address fields will auto-fill."}
                   </p>
                   <div className="overflow-hidden rounded-xl border border-border">
                     <LocationPickerMap
                       value={form.address?.coordinates?.coordinates ?? null}
-                      onChange={(coordinates) => {
-                        update({
-                          address: {
-                            street: form.address?.street || "",
-                            city: form.address?.city || "",
-                            state: form.address?.state || "",
-                            zipCode: form.address?.zipCode || "",
-                            coordinates: coordinates
-                              ? { type: "Point", coordinates }
-                              : undefined,
-                          },
-                        });
-                      }}
+                      onChange={handleLocationChange}
                     />
                   </div>
                 </div>

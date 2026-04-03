@@ -36,6 +36,12 @@ const Header = () => {
             >
               Pricing
             </NavLink>
+            <NavLink
+              to="/contact"
+              className="ml-6 text-neutral-500 hover:text-neutral-900 transition-colors duration-200"
+            >
+              Contact
+            </NavLink>
           </nav>
           <div>
             {isAuthenticated ? (
@@ -97,6 +103,13 @@ const Header = () => {
               className="text-neutral-500 hover:text-neutral-900 transition-colors duration-200"
             >
               Pricing
+            </NavLink>
+            <NavLink
+              to="/contact"
+              onClick={() => setIsOpen(false)}
+              className="text-neutral-500 hover:text-neutral-900 transition-colors duration-200"
+            >
+              Contact
             </NavLink>
             <div className="mt-4 w-full flex flex-col gap-2">
               {isAuthenticated ? (
