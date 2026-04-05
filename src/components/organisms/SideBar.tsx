@@ -18,7 +18,8 @@ import {
   ShieldCheck
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
-import logo from "@/assets/logo-transparent.png";
+import favicon from "@/assets/favicon.png";
+import horizontalLogo from "@/assets/horizontal-logo.png";
 
 const homeownerLinks = [
   { to: "/homeowner/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -74,9 +75,9 @@ const SideBar = ({
       className={`fixed top-0 left-0 h-screen ${isCollapsed ? "w-sidebar-collapsed" : "w-sidebar"} transition-all duration-300 bg-white border-r border-r-neutral-200 flex flex-col`}
     >
       {/* Logo */}
-      <div className="h-14 px-3 border-b border-b-neutral-200 flex items-center space-x-2 shrink-0">
-        <img src={logo} alt="RP360" className="h-8 w-auto" />
-        {!isCollapsed && <h4>RP360</h4>}
+      <div className="h-14 px-3 border-b border-b-neutral-200 flex items-center gap-2 shrink-0">
+        <img src={favicon} alt="RP360" className="h-8 w-8 shrink-0" />
+        {!isCollapsed && <img src={horizontalLogo} alt="Remodel Pro 360" className="h-6 w-auto" />}
       </div>
       <div className="px-3 flex flex-col flex-1">
         {/* Navigation Bar */}

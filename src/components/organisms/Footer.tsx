@@ -1,5 +1,6 @@
 import { Container } from "../atoms/Container";
 import { Link } from "react-router-dom";
+import horizontalLogo from "@/assets/horizontal-logo.png";
 
 const Footer = () => {
   return (
@@ -7,7 +8,9 @@ const Footer = () => {
       <Container className="space-y-8">
         <div className="grid gap-8 grid-cols-1 md:grid-cols-2 lg:grid-cols-5">
           <div>
-            <h3 className="text-neutral-900">RP360</h3>
+            <Link to="/">
+              <img src={horizontalLogo} alt="Remodel Pro 360" className="h-8 w-auto mb-2" />
+            </Link>
             <p className="text-neutral-700 text-sm">
               AI-powered home renovation made simple.
             </p>
