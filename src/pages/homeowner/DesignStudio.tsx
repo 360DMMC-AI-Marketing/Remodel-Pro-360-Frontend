@@ -17,7 +17,6 @@ import {
   Link2,
   Check,
   Paperclip,
-  Star,
   Send,
   SplitSquareHorizontal,
   CheckSquare,
@@ -99,9 +98,6 @@ const DesignStudio = () => {
 
   // Share
   const [copiedShareId, setCopiedShareId] = useState<string | null>(null);
-
-  // Selected design (only this one can be shared/attached/favorited)
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
   // Refinement prompt for iterating on generated designs
   const [refinementPrompt, setRefinementPrompt] = useState("");
@@ -342,7 +338,6 @@ const DesignStudio = () => {
       await Promise.all(deleteTarget.ids.map((id) => designService.deleteDesign(id)));
       setHistory((prev) => prev.filter((s) => !deleteTarget.ids.includes(s._id)));
       setCurrentSessions((prev) => prev.filter((s) => !deleteTarget.ids.includes(s._id)));
-      if (selectedSessionId && deleteTarget.ids.includes(selectedSessionId)) setSelectedSessionId(null);
       setBulkSelected(new Set());
       toast.success(deleteTarget.ids.length > 1 ? `${deleteTarget.ids.length} designs deleted.` : "Design deleted.");
     } catch {
@@ -351,7 +346,7 @@ const DesignStudio = () => {
       setIsDeleting(false);
       setDeleteTarget(null);
     }
-  }, [deleteTarget, selectedSessionId]);
+  }, [deleteTarget]);
 
   const handleToggleFavorite = async (id: string) => {
     try {
@@ -731,8 +726,6 @@ const DesignStudio = () => {
               const activeStyleName = DESIGN_STYLES.find((s) => s.id === activeSession.style?.id)?.label ?? activeSession.style?.id ?? "Design";
               const activeUrl = activeSession.generatedImages?.[0]?.signedUrl;
               const originalUrl = uploadedImages[0]?.preview || activeSession.roomPhoto?.signedUrl;
-              const isSelected = selectedSessionId === activeSession._id;
-
               return (
                 <div className="space-y-4">
                   {/* ── Mode toggle ── */}
@@ -779,7 +772,7 @@ const DesignStudio = () => {
                         )}
                         <div className="px-3 py-1.5 text-[11px] text-neutral-500 font-medium bg-neutral-50">Original</div>
                       </div>
-                      <div className={`rounded-xl overflow-hidden border-2 bg-white shadow-sm transition-colors ${isSelected ? "border-primary-500" : "border-primary-200"}`}>
+                      <div className="rounded-xl overflow-hidden border-2 border-primary-200 bg-white shadow-sm">
                         {activeUrl ? (
                           <img src={activeUrl} alt={activeStyleName} className="w-full aspect-[4/3] object-cover" />
                         ) : pendingSessions.length > 0 ? (
@@ -883,76 +876,59 @@ const DesignStudio = () => {
                     <div className="flex flex-wrap items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => setSelectedSessionId(isSelected ? null : activeSession._id)}
+                        onClick={() => handleToggleFavorite(activeSession._id)}
                         className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                          isSelected
-                            ? "bg-primary-500 text-white"
-                            : "border border-neutral-200 text-neutral-600 hover:bg-primary-50 hover:text-primary-600"
+                          favoriteIds.has(activeSession._id)
+                            ? "bg-red-50 text-red-600 border border-red-200"
+                            : "border border-neutral-200 text-neutral-600 hover:bg-neutral-50"
                         }`}
                       >
-                        <Star size={12} className={isSelected ? "fill-white" : ""} />
-                        {isSelected ? "Selected" : "Select as Final"}
+                        <Heart size={12} className={favoriteIds.has(activeSession._id) ? "fill-red-500" : ""} />
+                        {favoriteIds.has(activeSession._id) ? "Favorited" : "Favorite"}
                       </button>
 
-                      {isSelected && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => handleToggleFavorite(activeSession._id)}
-                            className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
-                              favoriteIds.has(activeSession._id)
-                                ? "bg-red-50 text-red-600 border border-red-200"
-                                : "border border-neutral-200 text-neutral-600 hover:bg-neutral-50"
-                            }`}
-                          >
-                            <Heart size={12} className={favoriteIds.has(activeSession._id) ? "fill-red-500" : ""} />
-                            {favoriteIds.has(activeSession._id) ? "Favorited" : "Favorite"}
-                          </button>
+                      <button
+                        type="button"
+                        onClick={() => handleShare(activeSession._id)}
+                        className="inline-flex items-center gap-1 rounded-md border border-neutral-200 px-2.5 py-1 text-[11px] font-medium text-neutral-600 hover:bg-neutral-50 transition-colors"
+                      >
+                        {copiedShareId === activeSession._id ? <Check size={12} className="text-green-500" /> : <Share2 size={12} />}
+                        {copiedShareId === activeSession._id ? "Copied!" : "Share"}
+                      </button>
 
-                          <button
-                            type="button"
-                            onClick={() => handleShare(activeSession._id)}
-                            className="inline-flex items-center gap-1 rounded-md border border-neutral-200 px-2 py-1 text-[11px] font-medium text-neutral-600 hover:bg-neutral-50 transition-colors"
-                          >
-                            {copiedShareId === activeSession._id ? <Check size={12} className="text-green-500" /> : <Share2 size={12} />}
-                            {copiedShareId === activeSession._id ? "Copied!" : "Share"}
-                          </button>
+                      <div className="relative" data-attach-menu>
+                        <button
+                          type="button"
+                          onClick={() => setAttachingId(attachingId === activeSession._id ? null : activeSession._id)}
+                          className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                            activeSession.projectId
+                              ? "border-green-200 bg-green-50 text-green-600"
+                              : "border-neutral-200 text-neutral-600 hover:bg-neutral-50"
+                          }`}
+                        >
+                          <Paperclip size={12} />
+                          {activeSession.projectId ? "Attached" : "Attach"}
+                        </button>
 
-                          <div className="relative" data-attach-menu>
-                            <button
-                              type="button"
-                              onClick={() => setAttachingId(attachingId === activeSession._id ? null : activeSession._id)}
-                              className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors ${
-                                activeSession.projectId
-                                  ? "border-green-200 bg-green-50 text-green-600"
-                                  : "border-neutral-200 text-neutral-600 hover:bg-neutral-50"
-                              }`}
-                            >
-                              <Paperclip size={12} />
-                              {activeSession.projectId ? "Attached" : "Attach"}
-                            </button>
-
-                            {attachingId === activeSession._id && (
-                              <div className="absolute top-full left-0 mt-1 w-48 rounded-lg border border-neutral-200 bg-white shadow-lg z-10">
-                                {projects.length === 0 ? (
-                                  <p className="p-3 text-xs text-neutral-400">No projects found</p>
-                                ) : (
-                                  projects.map((p) => (
-                                    <button
-                                      key={p._id}
-                                      type="button"
-                                      onClick={() => handleAttach(activeSession._id, p._id)}
-                                      className="w-full text-left px-3 py-2 text-xs text-neutral-700 hover:bg-primary-50 hover:text-primary-700 transition-colors first:rounded-t-lg last:rounded-b-lg"
-                                    >
-                                      {p.title}
-                                    </button>
-                                  ))
-                                )}
-                              </div>
+                        {attachingId === activeSession._id && (
+                          <div className="absolute top-full left-0 mt-1 w-48 rounded-lg border border-neutral-200 bg-white shadow-lg z-10">
+                            {projects.length === 0 ? (
+                              <p className="p-3 text-xs text-neutral-400">No projects found</p>
+                            ) : (
+                              projects.map((p) => (
+                                <button
+                                  key={p._id}
+                                  type="button"
+                                  onClick={() => handleAttach(activeSession._id, p._id)}
+                                  className="w-full text-left px-3 py-2 text-xs text-neutral-700 hover:bg-primary-50 hover:text-primary-700 transition-colors first:rounded-t-lg last:rounded-b-lg"
+                                >
+                                  {p.title}
+                                </button>
+                              ))
                             )}
                           </div>
-                        </>
-                      )}
+                        )}
+                      </div>
                     </div>
                   )}
 
