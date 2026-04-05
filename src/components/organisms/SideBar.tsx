@@ -75,9 +75,13 @@ const SideBar = ({
       className={`fixed top-0 left-0 h-screen ${isCollapsed ? "w-sidebar-collapsed" : "w-sidebar"} transition-all duration-300 bg-white border-r border-r-neutral-200 flex flex-col`}
     >
       {/* Logo */}
-      <div className="h-14 px-3 border-b border-b-neutral-200 flex items-center gap-2 shrink-0">
+      <div className="h-14 px-3 border-b border-b-neutral-200 flex items-center gap-2 shrink-0 overflow-hidden">
         <img src={favicon} alt="RP360" className="h-8 w-8 shrink-0" />
-        {!isCollapsed && <img src={horizontalLogo} alt="Remodel Pro 360" className="h-6 w-auto" />}
+        <img
+          src={horizontalLogo}
+          alt="Remodel Pro 360"
+          className={`h-6 w-auto transition-all duration-300 ${isCollapsed ? "opacity-0 w-0" : "opacity-100 w-auto"}`}
+        />
       </div>
       <div className="px-3 flex flex-col flex-1">
         {/* Navigation Bar */}
@@ -94,9 +98,7 @@ const SideBar = ({
               }
             >
               <l.icon size={22} className={`shrink-0 ${active ? 'text-primary-600' : 'text-neutral-500 group-hover:text-neutral-800 transition-colors duration-200'}`} />
-              {!isCollapsed && (
-                <span className={`flex-1 text-base ${active ? 'text-primary-500' : 'text-neutral-500 group-hover:text-neutral-800 transition-colors duration-200'}`}>{l.label}</span>
-              )}
+              <span className={`whitespace-nowrap overflow-hidden transition-all duration-300 text-base ${isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"} ${active ? 'text-primary-500' : 'text-neutral-500 group-hover:text-neutral-800'}`}>{l.label}</span>
               {l.label === "Messages" && unreadTotal > 0 && (
                 <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-primary-500 px-1.5 text-[11px] font-semibold text-white">
                   {unreadTotal > 99 ? "99+" : unreadTotal}
@@ -115,11 +117,9 @@ const SideBar = ({
               size={22}
               className="text-neutral-500 group-hover:text-red-400"
             />
-            {!isCollapsed && (
-              <span className="text-base text-neutral-500 group-hover:text-red-400">
-                Log Out
-              </span>
-            )}
+            <span className={`whitespace-nowrap overflow-hidden transition-all duration-300 text-base text-neutral-500 group-hover:text-red-400 ${isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"}`}>
+              Log Out
+            </span>
           </button>
         </div>
       </div>
