@@ -41,7 +41,7 @@ const ReviewDialog = ({ request, onClose, onReviewed }: ReviewDialogProps) => {
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const contractor = request.contractorId;
+  const contractor = request.contractorId as typeof request.contractorId | null;
 
   const handleSubmit = async () => {
     try {
@@ -62,7 +62,7 @@ const ReviewDialog = ({ request, onClose, onReviewed }: ReviewDialogProps) => {
         <div className="p-6 border-b border-neutral-200">
           <h5 className="font-semibold">Review Vetting Request</h5>
           <p className="text-sm text-muted-foreground mt-1">
-            {contractor.firstName} {contractor.lastName} &mdash; {contractor.email}
+            {contractor?.firstName ?? "Unknown"} {contractor?.lastName ?? ""} &mdash; {contractor?.email ?? "—"}
           </p>
         </div>
 
@@ -260,19 +260,19 @@ const ContractorVetting = () => {
                         {c?.avatar ? (
                           <img
                             src={getImageUrl(c.avatar)}
-                            alt={`${c?.firstName} ${c?.lastName}`}
+                            alt={`${c?.firstName ?? ""} ${c?.lastName ?? ""}`}
                             className="w-10 h-10 rounded-full object-cover shrink-0"
                           />
                         ) : (
                           <div className="w-10 h-10 bg-primary-200 rounded-full flex justify-center items-center shrink-0">
                             <span className="text-primary-600 text-sm font-medium">
-                              {c?.firstName[0]}{c?.lastName[0]}
+                              {c?.firstName?.[0] ?? ""}{c?.lastName?.[0] ?? ""}
                             </span>
                           </div>
                         )}
                         <div>
-                          <p className="font-medium text-sm">{c?.firstName} {c?.lastName}</p>
-                          <p className="text-xs text-neutral-500">{c?.email}</p>
+                          <p className="font-medium text-sm">{c?.firstName ?? "Unknown"} {c?.lastName ?? ""}</p>
+                          <p className="text-xs text-neutral-500">{c?.email ?? "—"}</p>
                         </div>
                       </div>
                     </TableCell>

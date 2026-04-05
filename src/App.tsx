@@ -37,6 +37,8 @@ import NotificationsPage from "./pages/NotificationsPage";
 import SelectRole from "./pages/auth/SelectRole";
 import SettingsPage from "./pages/SettingsPage";
 import SharedDesign from "./pages/SharedDesign";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 
 interface ProtectedRoutesProps {
   allowedRole?: "homeowner" | "contractor" | "admin";
@@ -104,6 +106,8 @@ function App() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/select-role" element={<SelectRole />} />
         <Route path="/designs/shared/:token" element={<SharedDesign />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
 
         <Route element={<ProtectedRoutes />}>
           <Route path="/messages" element={<MessagesRouteResolver />} />
