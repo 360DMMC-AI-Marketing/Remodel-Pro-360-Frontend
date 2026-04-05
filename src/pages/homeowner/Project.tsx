@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import type { HomeownerProject } from "@/types/project";
 import { deleteProject, getProjectById, updateProject, updateProjectStatus } from "@/api/project";
-import { designService, type DesignSession } from "@/api/design";
+import type { DesignSession } from "@/api/design";
 import { bidService, type HomeownerBid } from "@/api/bid";
 import { contractService, type ContractRecord } from "@/api/contract";
 import { milestoneService, type MilestoneRecord } from "@/api/milestone";
