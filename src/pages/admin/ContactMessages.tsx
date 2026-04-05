@@ -7,7 +7,6 @@ import {
   Mail,
   MailOpen,
   Reply,
-  ChevronDown,
   X,
   Loader2,
 } from "lucide-react";
