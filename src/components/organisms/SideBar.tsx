@@ -115,7 +115,7 @@ const SideBar = ({
           >
             <LogOut
               size={22}
-              className="text-neutral-500 group-hover:text-red-400"
+              className="shrink-0 text-neutral-500 group-hover:text-red-400"
             />
             <span className={`whitespace-nowrap overflow-hidden transition-all duration-300 text-base text-neutral-500 group-hover:text-red-400 ${isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"}`}>
               Log Out
