@@ -15,7 +15,8 @@ import {
   Briefcase,
   DollarSign,
   User,
-  ShieldCheck
+  ShieldCheck,
+  Mail,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import favicon from "@/assets/favicon.png";
@@ -45,6 +46,7 @@ const adminLinks = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/admin/vetting', label: 'Contractor Vetting', icon: ShieldCheck },
   { to: '/admin/users', label: 'Users', icon: User },
+  { to: '/admin/messages', label: 'Messages', icon: Mail },
 ]
 
 const SideBar = ({

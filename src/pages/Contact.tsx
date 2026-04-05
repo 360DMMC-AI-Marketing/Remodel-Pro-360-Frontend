@@ -8,6 +8,7 @@ import { Card } from "@/components/molecules/Card";
 import { Mail, Phone, MapPin } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import api from "@/api/interceptor";
 import { motion } from "framer-motion";
 
 const Contact = () => {
@@ -44,17 +45,12 @@ const Contact = () => {
 
     setLoading(true);
     try {
-      // Simulate API call - replace with actual backend endpoint
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await api.post("/contact", formData);
       toast.success("Message sent successfully! We'll get back to you soon.");
-      setFormData({
-        name: "",
-        email: "",
-        subject: "",
-        message: "",
-      });
-    } catch (error) {
-      toast.error("Failed to send message. Please try again.");
+      setFormData({ name: "", email: "", subject: "", message: "" });
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || error?.response?.data?.error || "Failed to send message. Please try again.";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

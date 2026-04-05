@@ -39,6 +39,7 @@ import SettingsPage from "./pages/SettingsPage";
 import SharedDesign from "./pages/SharedDesign";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
+import ContactMessages from "./pages/admin/ContactMessages";
 
 interface ProtectedRoutesProps {
   allowedRole?: "homeowner" | "contractor" | "admin";
@@ -150,6 +151,7 @@ function App() {
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/users" element={<AdminUsers />} />
             <Route path="/admin/vetting" element={<ContractorVetting />} />
+            <Route path="/admin/messages" element={<ContactMessages />} />
             <Route path="/admin/notifications" element={<NotificationsPage />} />
           </Route>
         </Route>

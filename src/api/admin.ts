@@ -23,6 +23,18 @@ export type PopulatedVettingRequest = Omit<VettingRequestData, "contractorId"> &
   contractorId: ContractorSummary;
 };
 
+export interface ContactMessageData {
+  _id: string;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  status: "unread" | "read" | "replied";
+  adminNotes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AdminStats {
   totalUsers: number;
   totalContractors: number;
@@ -113,5 +125,23 @@ export const adminService = {
 
   resolveDispute: async (milestoneId: string, resolution: "approved" | "in_progress"): Promise<void> => {
     await api.patch(`/admin/disputes/${milestoneId}/resolve`, { resolution });
+  },
+
+  getContactMessages: async (
+    status: string = "all",
+    page = 1,
+    limit = 20,
+  ): Promise<{ messages: ContactMessageData[]; total: number; page: number; totalPages: number }> => {
+    const params: Record<string, unknown> = { page, limit };
+    if (status !== "all") params.status = status;
+    const response = await api.get("/admin/contact-messages", { params });
+    return response.data;
+  },
+
+  updateContactMessage: async (
+    id: string,
+    data: { status?: string; adminNotes?: string },
+  ): Promise<void> => {
+    await api.patch(`/admin/contact-messages/${id}`, data);
   },
 };
