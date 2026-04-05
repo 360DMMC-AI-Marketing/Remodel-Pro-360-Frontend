@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import type { HomeownerProject } from "@/types/project";
 import { deleteProject, getProjectById, updateProject, updateProjectStatus } from "@/api/project";
+import { designService, type DesignSession } from "@/api/design";
 import { bidService, type HomeownerBid } from "@/api/bid";
 import { contractService, type ContractRecord } from "@/api/contract";
 import { milestoneService, type MilestoneRecord } from "@/api/milestone";
@@ -83,6 +84,7 @@ const Project = () => {
   const [project, setProject] = useState<HomeownerProject | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [linkedDesign, setLinkedDesign] = useState<DesignSession | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [bids, setBids] = useState<HomeownerBid[]>([]);
   const [loadingBids, setLoadingBids] = useState(true);
@@ -260,6 +262,11 @@ const Project = () => {
       try {
         const data = await getProjectById(id!);
         setProject(data.project);
+        // Use populated design if available
+        const design = data.project?.currentDesignId;
+        if (design && typeof design === "object") {
+          setLinkedDesign(design as unknown as DesignSession);
+        }
         await Promise.all([loadBids(id!), loadContract(id!), loadMilestones(id!), loadEscrow(id!), loadReview(id!)]);
         setLoading(false);
       } catch (error) {
@@ -830,14 +837,51 @@ const Project = () => {
                 )}
               </div>
             )}
+            {/* Linked Design */}
+            {linkedDesign && (
+              <div className="mb-4">
+                <p className="text-xs font-medium text-neutral-500 mb-2">Linked Design</p>
+                <div className="flex gap-3 rounded-lg border border-primary-200 bg-primary-50/30 p-3">
+                  {linkedDesign.generatedImages?.[0]?.signedUrl && (
+                    <img
+                      src={linkedDesign.generatedImages[0].signedUrl}
+                      alt="Generated design"
+                      className="w-32 h-24 object-cover rounded-lg"
+                    />
+                  )}
+                  {linkedDesign.roomPhoto?.signedUrl && (
+                    <img
+                      src={linkedDesign.roomPhoto.signedUrl}
+                      alt="Original room"
+                      className="w-32 h-24 object-cover rounded-lg opacity-75"
+                    />
+                  )}
+                  <div className="flex flex-col justify-center min-w-0">
+                    <p className="text-sm font-medium text-neutral-800 capitalize">
+                      {linkedDesign.style?.id ?? "Design"}
+                    </p>
+                    {linkedDesign.style?.prompt && (
+                      <p className="text-[11px] text-neutral-500 truncate">{linkedDesign.style.prompt}</p>
+                    )}
+                    <p className="text-[10px] text-neutral-400 mt-0.5">
+                      {new Date(linkedDesign.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Project Images */}
             {loading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex gap-3">
                 {[1, 2, 3, 4].map((i) => (
-                  <Skeleton key={i} variant="image" className="w-full h-48 rounded-lg" />
+                  <Skeleton key={i} variant="image" className="w-20 h-20 rounded-lg shrink-0" />
                 ))}
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            ) : images.length > 0 ? (
+              <div>
+                {!linkedDesign && <p className="text-xs font-medium text-neutral-500 mb-2">Photos</p>}
+                <div className="flex gap-2 flex-wrap">
                   {images.map((img, index) => {
                     const markedForRemoval = removedImageUrls.includes(img.url);
                     return (
@@ -845,7 +889,7 @@ const Project = () => {
                         <img
                           src={`${BASE_IMAGE_URL}${img.url}`}
                           alt={`Project Image ${index + 1}`}
-                          className={`w-full h-48 object-cover rounded-lg cursor-pointer ${
+                          className={`w-20 h-20 object-cover rounded-lg cursor-pointer border border-neutral-200 hover:ring-2 hover:ring-primary-300 transition-all ${
                             markedForRemoval ? "opacity-40" : ""
                           }`}
                           onClick={() => setActiveImageIndex(index)}
@@ -858,16 +902,19 @@ const Project = () => {
                                 ? undoRemoveExistingImage(img.url)
                                 : removeExistingImage(img.url)
                             }
-                            className="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-1 text-xs"
+                            className="absolute -right-1 -top-1 rounded-full bg-white shadow-sm border border-neutral-200 p-0.5 text-neutral-500 hover:text-red-500"
                           >
-                            {markedForRemoval ? "Undo" : "Remove"}
+                            <X className="size-3" />
                           </button>
                         )}
                       </div>
                     );
                   })}
+                </div>
               </div>
-            )}
+            ) : !linkedDesign ? (
+              <p className="text-sm text-neutral-400">No images or designs attached</p>
+            ) : null}
         </div>
         <div className="h-fit col-span-1 bg-white rounded-xl p-5 border border-neutral-200">
             <h6 className="mb-3 text-neutral-800">Details</h6>

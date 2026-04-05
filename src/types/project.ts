@@ -4,6 +4,14 @@ export interface HomeownerProject {
   roomType: string;
   description?: string;
   status?: string;
+  currentDesignId?: string | {
+    _id: string;
+    style?: { id: string; prompt?: string };
+    roomPhoto?: { url: string; signedUrl?: string };
+    generatedImages?: { url: string; signedUrl?: string; resolution?: string }[];
+    status?: string;
+  };
+  originalDesignId?: string;
   images?: {
     url: string;
     type: "before" | "progress" | "site_condition";

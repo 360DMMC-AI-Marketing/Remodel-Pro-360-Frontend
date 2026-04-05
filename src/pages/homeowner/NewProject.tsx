@@ -2,7 +2,7 @@ import { Button } from "@/components/atoms/Button";
 import { Textarea } from "@/components/atoms/Textarea";
 import { Input } from "@/components/atoms/Input";
 import { Card } from "@/components/molecules/Card";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Check,
@@ -12,10 +12,12 @@ import {
   X,
   MapPin,
   Sparkles,
+  Image as ImageIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { createProject } from "@/api/project";
+import { designService, type DesignSession } from "@/api/design";
 import { reverseGeocode } from "@/api/geolocation";
 import LocationPickerMap from "@/components/ui/LocationPickerMap";
 
@@ -43,8 +45,12 @@ const ROOM_TYPES = [
   { value: "exterior", label: "Exterior", icon: "🏠" },
 ];
 
-// Placeholder for designs - should be fetched from API
-const MOCK_DESIGNS: Array<{ id: string; style: string; roomType: string }> = [];
+// Design styles for label display
+const STYLE_LABELS: Record<string, string> = {
+  modern: "Modern", farmhouse: "Farmhouse", scandinavian: "Scandinavian",
+  industrial: "Industrial", coastal: "Coastal", minimalist: "Minimalist",
+  bohemian: "Bohemian", "mid-century": "Mid-Century", traditional: "Traditional", japandi: "Japandi",
+};
 
 interface UploadedPhoto {
   id: string;
@@ -83,6 +89,14 @@ const NewProject = () => {
   const [savingDraft, setSavingDraft] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Completed designs for attachment
+  const [designs, setDesigns] = useState<DesignSession[]>([]);
+  useEffect(() => {
+    designService.getMyDesigns(1, 50).then((res) => {
+      setDesigns(res.data.filter((d) => d.status === "completed" && d.generatedImages?.length));
+    }).catch(() => {});
+  }, []);
   const [form, setForm] = useState<ProjectFormData>({
     roomType: "",
     title: "",
@@ -160,7 +174,7 @@ const NewProject = () => {
 
   const canNext = () => {
     if (step === 0) return !!form.roomType;
-    if (step === 1) return form.images.length > 0;
+    if (step === 1) return form.images.length > 0 || !!form.attachedDesignId;
     if (step === 2)
       return (
         form.title.trim().length >= 3 &&
@@ -199,7 +213,7 @@ const NewProject = () => {
   const selectedBudget = form.budgetRange;
   const selectedRoom = ROOM_TYPES.find((r) => r.value === form.roomType);
   const attachedDesign = form.attachedDesignId
-    ? MOCK_DESIGNS.find((d) => d.id === form.attachedDesignId)
+    ? designs.find((d) => d._id === form.attachedDesignId) ?? null
     : null;
 
   const handleSubmit = async () => {
@@ -249,16 +263,16 @@ const NewProject = () => {
               Tell us about your renovation in a few steps
             </p>
           </div>
-          <div className="my-8 flex items-center gap-1">
+          <div className="my-6 sm:my-8 flex items-center gap-0.5 sm:gap-1">
             {STEPS.map((label, i) => (
               <div
                 key={label}
-                className="flex flex-1 flex-col items-center gap-1.5"
+                className="flex flex-1 flex-col items-center gap-1"
               >
                 <div className="flex w-full items-center">
                   <div
                     className={cn(
-                      "mx-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold cursor-default transition-colors",
+                      "mx-auto flex h-6 w-6 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full text-[10px] sm:text-xs font-semibold cursor-default transition-colors",
                       i < step &&
                         "bg-linear-to-br from-primary-500 to-primary-800 text-white",
                       i === step &&
@@ -266,12 +280,12 @@ const NewProject = () => {
                       i > step && "border border-neutral-400 text-neutral-400",
                     )}
                   >
-                    {i < step ? <Check className="h-4 w-4" /> : i + 1}
+                    {i < step ? <Check className="h-3 w-3 sm:h-4 sm:w-4" /> : i + 1}
                   </div>
                 </div>
                 <span
                   className={cn(
-                    "text-xs",
+                    "text-[10px] sm:text-xs text-center leading-tight",
                     i <= step
                       ? "text-foreground font-medium"
                       : "text-muted-foreground",
@@ -413,6 +427,68 @@ const NewProject = () => {
                     </div>
                   )}
                 </div>
+
+                {/* Or attach a design */}
+                {designs.length > 0 && (
+                  <div>
+                    <div className="relative mb-3">
+                      <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
+                      <div className="relative flex justify-center"><span className="bg-background px-3 text-xs text-muted-foreground">Or attach a design</span></div>
+                    </div>
+
+                    {form.attachedDesignId ? (
+                      <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3">
+                        {attachedDesign?.generatedImages?.[0]?.signedUrl && (
+                          <img src={attachedDesign.generatedImages[0].signedUrl} alt="" className="h-16 w-16 rounded-lg object-cover" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground">
+                            {STYLE_LABELS[attachedDesign?.style?.id ?? ""] ?? attachedDesign?.style?.id ?? "Design"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {attachedDesign ? new Date(attachedDesign.createdAt).toLocaleDateString() : ""}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => update({ attachedDesignId: null })}
+                          className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-48 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+                        {designs.map((d) => {
+                          const thumb = d.generatedImages?.[0]?.signedUrl;
+                          const label = STYLE_LABELS[d.style?.id ?? ""] ?? d.style?.id ?? "";
+                          return (
+                            <button
+                              key={d._id}
+                              type="button"
+                              onClick={() => update({ attachedDesignId: d._id, images: [] })}
+                              className="group rounded-lg overflow-hidden border border-border hover:border-primary/40 transition-colors"
+                              disabled={form.images.length > 0}
+                            >
+                              {thumb ? (
+                                <img src={thumb} alt={label} className="w-full aspect-square object-cover" />
+                              ) : (
+                                <div className="w-full aspect-square bg-muted flex items-center justify-center">
+                                  <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                                </div>
+                              )}
+                              <p className="px-1.5 py-1 text-[10px] text-muted-foreground truncate">{label}</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {form.images.length > 0 && !form.attachedDesignId && (
+                      <p className="text-[10px] text-muted-foreground mt-1">Remove uploaded photos to attach a design instead</p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
             {step === 2 && (
@@ -628,12 +704,15 @@ const NewProject = () => {
                       </p>
                       {attachedDesign ? (
                         <div className="flex items-center gap-2">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                            <Sparkles className="h-4 w-4 text-primary" />
-                          </div>
+                          {attachedDesign.generatedImages?.[0]?.signedUrl ? (
+                            <img src={attachedDesign.generatedImages[0].signedUrl} alt="" className="h-10 w-10 rounded-lg object-cover" />
+                          ) : (
+                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                              <Sparkles className="h-4 w-4 text-primary" />
+                            </div>
+                          )}
                           <span className="text-sm font-medium capitalize text-foreground">
-                            {attachedDesign.style}{" "}
-                            {attachedDesign.roomType.replace("_", " ")}
+                            {STYLE_LABELS[attachedDesign.style?.id ?? ""] ?? attachedDesign.style?.id ?? "Design"}
                           </span>
                         </div>
                       ) : (

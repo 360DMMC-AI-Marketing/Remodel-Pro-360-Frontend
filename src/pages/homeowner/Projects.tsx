@@ -161,22 +161,19 @@ const Projects = () => {
                 <div className="flex flex-col space-y-3 md:flex-row md:items-start md:justify-between">
                   <div className="flex lg:items-center gap-3 flex-col lg:flex-row">
                     <div className="shrink-0">
-                      {
-                        project.images && project.images.length > 0 ? (
+                      {(() => {
+                        const design = typeof project.currentDesignId === "object" ? project.currentDesignId : null;
+                        const designImg = design?.generatedImages?.[0]?.signedUrl;
+                        const projectImg = project.images?.[0]?.url ? `${BASE_IMAGE_URL}${project.images[0].url}` : null;
+                        const src = designImg || projectImg;
+                        return (
                           <img
-                            src={`${BASE_IMAGE_URL}${project.images[0].url}`}
+                            src={src || imagePlaceholder}
                             alt={project.title}
                             className="w-full h-32 md:size-32 object-cover rounded-lg"
                           />
-                        ) : (
-                          <img
-                            src={imagePlaceholder}
-                            alt={project.title}
-                            className="w-full h-32 md:size-32 object-cover rounded-lg"
-                          />
-                        )
-
-                      }
+                        );
+                      })()}
                     </div>
                     <div>
                       <div>

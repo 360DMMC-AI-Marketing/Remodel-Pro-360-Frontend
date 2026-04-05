@@ -72,6 +72,11 @@ export const createProject = async (data: ProjectForm, options?: CreateProjectOp
         formData.append('images', img.file);
       });
     }
+
+    // Attach design if provided
+    if ((data as any).attachedDesignId) {
+      formData.append('attachedDesignId', (data as any).attachedDesignId);
+    }
     
     const response = await api.post('/projects', formData, {
       headers: {

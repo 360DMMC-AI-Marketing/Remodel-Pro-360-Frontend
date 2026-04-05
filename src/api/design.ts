@@ -32,6 +32,7 @@ export const designService = {
     designStyle: string,
     prompt?: string,
     projectId?: string,
+    roomDimensions?: { length: number; width: number; height: number },
   ): Promise<DesignSession> {
     const formData = new FormData();
     formData.append("image", image);
@@ -39,6 +40,7 @@ export const designService = {
     formData.append("designStyle", designStyle);
     if (prompt) formData.append("prompt", prompt);
     if (projectId) formData.append("projectId", projectId);
+    if (roomDimensions) formData.append("roomDimensions", JSON.stringify(roomDimensions));
 
     const res = await api.post("/designs", formData, {
       headers: { "Content-Type": "multipart/form-data" },
@@ -93,5 +95,46 @@ export const designService = {
 
   async deleteDesign(id: string): Promise<void> {
     await api.delete(`/designs/${id}`);
+  },
+
+  // ── Favorites ──────────────────────────────────────────────
+
+  async toggleFavorite(id: string): Promise<{ favorited: boolean }> {
+    const res = await api.post(`/designs/${id}/favorite`);
+    return res.data.data;
+  },
+
+  async getFavorites(
+    page = 1,
+    limit = 20,
+  ): Promise<{ data: DesignSession[]; page: number; totalPages: number; total: number }> {
+    const res = await api.get("/designs/favorites", { params: { page, limit } });
+    return res.data;
+  },
+
+  // ── Share Link ─────────────────────────────────────────────
+
+  async generateShareLink(id: string): Promise<string> {
+    const res = await api.post(`/designs/${id}/share`);
+    return res.data.data.shareToken;
+  },
+
+  async revokeShareLink(id: string): Promise<void> {
+    await api.delete(`/designs/${id}/share`);
+  },
+
+  async getSharedDesign(token: string): Promise<DesignSession> {
+    const res = await api.get(`/designs/shared/${token}`);
+    return res.data.data as DesignSession;
+  },
+
+  // ── Attach to Project ──────────────────────────────────────
+
+  async attachToProject(designId: string, projectId: string): Promise<void> {
+    await api.post(`/designs/${designId}/attach`, { projectId });
+  },
+
+  async detachFromProject(designId: string): Promise<void> {
+    await api.delete(`/designs/${designId}/attach`);
   },
 };

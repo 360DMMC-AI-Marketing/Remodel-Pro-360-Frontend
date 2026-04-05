@@ -36,6 +36,7 @@ import ContractorDetails from "./pages/homeowner/ContractorDetails";
 import NotificationsPage from "./pages/NotificationsPage";
 import SelectRole from "./pages/auth/SelectRole";
 import SettingsPage from "./pages/SettingsPage";
+import SharedDesign from "./pages/SharedDesign";
 
 interface ProtectedRoutesProps {
   allowedRole?: "homeowner" | "contractor" | "admin";
@@ -102,6 +103,7 @@ function App() {
         <Route path="/verify-email" element={<EmailVerification />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/select-role" element={<SelectRole />} />
+        <Route path="/designs/shared/:token" element={<SharedDesign />} />
 
         <Route element={<ProtectedRoutes />}>
           <Route path="/messages" element={<MessagesRouteResolver />} />

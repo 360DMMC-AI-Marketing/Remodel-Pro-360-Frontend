@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from "react";
-import { Camera, MapPin, Phone, Mail, Save, User } from "lucide-react";
+import { Camera, MapPin, Phone, Mail, Save, User, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/stores/useAuth";
 import { getImageUrl } from "@/lib/utils";
 import { Button } from "@/components/atoms/Button";
 import { Input } from "@/components/atoms/Input";
 import { Card } from "@/components/molecules/Card";
+import LocationPickerMap from "@/components/ui/LocationPickerMap";
+import { reverseGeocode } from "@/api/geolocation";
 
 const HomeownerProfile = () => {
   const { user, updateProfile, updateAvatar, removeAvatar } = useAuth();
@@ -19,13 +21,16 @@ const HomeownerProfile = () => {
     city: "",
     state: "",
     zipCode: "",
+    coordinates: undefined as [number, number] | undefined,
   });
   const [saving, setSaving] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [isGeocoding, setIsGeocoding] = useState(false);
 
   useEffect(() => {
     if (!user) return;
+    const coords = user.address?.coordinates?.coordinates as [number, number] | undefined;
     setForm({
       firstName: user.firstName ?? "",
       lastName: user.lastName ?? "",
@@ -34,8 +39,40 @@ const HomeownerProfile = () => {
       city: user.address?.city ?? "",
       state: user.address?.state ?? "",
       zipCode: user.address?.zipCode ?? "",
+      coordinates: coords,
     });
   }, [user]);
+
+  const handleLocationChange = async (coordinates: [number, number] | null) => {
+    if (!coordinates) {
+      setForm((f) => ({ ...f, coordinates: undefined }));
+      return;
+    }
+
+    setIsGeocoding(true);
+    try {
+      const addressData = await reverseGeocode(coordinates[0], coordinates[1]);
+      if (addressData) {
+        setForm((f) => ({
+          ...f,
+          street: addressData.street,
+          city: addressData.city,
+          state: addressData.state,
+          zipCode: addressData.zipCode,
+          coordinates,
+        }));
+        toast.success("Address auto-filled from location");
+      } else {
+        setForm((f) => ({ ...f, coordinates }));
+        toast.info("Could not auto-fill address. Please fill in manually.");
+      }
+    } catch {
+      setForm((f) => ({ ...f, coordinates }));
+      toast.error("Error auto-filling address. Please fill in manually.");
+    } finally {
+      setIsGeocoding(false);
+    }
+  };
 
   const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -68,6 +105,9 @@ const HomeownerProfile = () => {
           city: form.city || undefined,
           state: form.state || undefined,
           zipCode: form.zipCode || undefined,
+          ...(form.coordinates && {
+            coordinates: { type: "Point" as const, coordinates: form.coordinates },
+          }),
         },
       });
 
@@ -136,6 +176,12 @@ const HomeownerProfile = () => {
             {user?.firstName} {user?.lastName}
           </p>
           <p className="text-sm text-neutral-500">{user?.email}</p>
+          {user?.createdAt && (
+            <p className="text-xs text-neutral-400 mt-1 flex items-center justify-center gap-1">
+              <Calendar size={12} />
+              Member since {new Date(user.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+            </p>
+          )}
         </div>
         {(avatarSrc && !avatarPreview) && (
           <Button variant="ghost" size="xs" onClick={() => void handleRemoveAvatar()}>
@@ -192,6 +238,18 @@ const HomeownerProfile = () => {
           <MapPin size={16} /> Address
         </h3>
         <div className="space-y-4">
+          <div>
+            <label className="text-xs font-medium text-neutral-500 mb-2 block">Pick your location on the map</label>
+            <div className="rounded-lg overflow-hidden border border-neutral-200">
+              <LocationPickerMap
+                value={form.coordinates ?? null}
+                onChange={handleLocationChange}
+              />
+            </div>
+            {isGeocoding && (
+              <p className="text-xs text-primary-500 mt-1">Auto-filling address...</p>
+            )}
+          </div>
           <div>
             <label className="text-xs font-medium text-neutral-500 mb-1 block">Street</label>
             <Input
